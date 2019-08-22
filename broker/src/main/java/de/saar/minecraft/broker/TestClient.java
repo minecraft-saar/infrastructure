@@ -129,7 +129,6 @@ public class TestClient {
       }
     } finally {
       client.shutdown();
-
     }
   }
 

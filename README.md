@@ -2,12 +2,6 @@
 
 Infrastructure for connecting a Minecraft server to the NLG system.
 
-### Compilation
-
-```
-./gradlew build
-```
-
 
 ### Start the Architect Server
 

@@ -5,11 +5,11 @@ import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
 import de.saar.minecraft.architect.ArchitectInformation;
 import de.saar.minecraft.architect.GameDataWithId;
-import de.saar.minecraft.matchmaker.db.Tables;
-import de.saar.minecraft.matchmaker.db.enums.GameLogsDirection;
-import de.saar.minecraft.matchmaker.db.enums.GamesStatus;
-import de.saar.minecraft.matchmaker.db.tables.records.GameLogsRecord;
-import de.saar.minecraft.matchmaker.db.tables.records.GamesRecord;
+import de.saar.minecraft.broker.db.Tables;
+import de.saar.minecraft.broker.db.enums.GameLogsDirection;
+import de.saar.minecraft.broker.db.enums.GamesStatus;
+import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
+import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
@@ -156,7 +156,10 @@ public class Broker {
         @Override
         public void endGame(GameId request, StreamObserver<Void> responseObserver) {
             log(request.getId(), request, GameLogsDirection.PassToArchitect);
-            blockingArchitectStub.endGame(request);
+            Void v = blockingArchitectStub.endGame(request);
+
+            responseObserver.onNext(v);
+            responseObserver.onCompleted();
 
             setGameStatus(request.getId(), GamesStatus.finished);
         }
