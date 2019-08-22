@@ -227,7 +227,7 @@ public class Broker {
 
     private void setGameStatus(int gameid, GamesStatus status) {
         // update status in games table
-        jooq.update(Tables.GAMES).set(Tables.GAMES.STATUS, status).where(Tables.GAMES.ID.equal(gameid));
+        jooq.update(Tables.GAMES).set(Tables.GAMES.STATUS, status).where(Tables.GAMES.ID.equal(gameid)).execute();
 
         // record updating of status in game_logs table
         GameLogsRecord glr = jooq.newRecord(Tables.GAME_LOGS);
