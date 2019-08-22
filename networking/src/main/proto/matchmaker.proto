@@ -1,15 +1,15 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "de.saar.minecraft.matchmaker";
-option java_outer_classname = "MatchmakerProto";
+option java_package = "de.saar.minecraft.broker";
+option java_outer_classname = "BrokerProto";
 
 package minecraft;
 
 import "shared.proto";
 
 
-service Matchmaker {
+service Broker {
     rpc StartGame (GameData) returns (GameId) {}
     rpc EndGame (GameId) returns (Void) {}
     rpc HandleStatusInformation (StatusMessage) returns (stream TextMessage) {}

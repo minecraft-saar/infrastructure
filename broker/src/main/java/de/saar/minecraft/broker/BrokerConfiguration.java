@@ -1,17 +1,17 @@
-package de.saar.minecraft.matchmaker;
+package de.saar.minecraft.broker;
 
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.Reader;
 
-public class MatchmakerConfiguration {
+public class BrokerConfiguration {
     private ArchitectServerAddress architectServer;
     private DatabaseAddress database;
     private int port;
 
-    public static MatchmakerConfiguration loadYaml(Reader reader) {
+    public static BrokerConfiguration loadYaml(Reader reader) {
         Yaml yaml = new Yaml();
-        MatchmakerConfiguration config = yaml.loadAs(reader, MatchmakerConfiguration.class);
+        BrokerConfiguration config = yaml.loadAs(reader, BrokerConfiguration.class);
         return config;
     }
 

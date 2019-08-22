@@ -1,6 +1,5 @@
-package de.saar.minecraft.matchmaker;
+package de.saar.minecraft.broker;
 
-import com.google.protobuf.TextFormat;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
@@ -20,16 +19,16 @@ import java.util.concurrent.TimeUnit;
  * back asynchronously. Type any other string to create a new game with the given game data. Type
  * Ctrl-D to quit the client.
  */
-public class MatchmakerTestClient {
+public class TestClient {
 
   private ManagedChannel channel;
-  private MatchmakerGrpc.MatchmakerBlockingStub blockingStub;
-  private MatchmakerGrpc.MatchmakerStub nonblockingStub;
+  private BrokerGrpc.BrokerBlockingStub blockingStub;
+  private BrokerGrpc.BrokerStub nonblockingStub;
 
   /**
    * Construct client connecting to HelloWorld server at {@code host:port}.
    */
-  public MatchmakerTestClient(String host, int port) {
+  public TestClient(String host, int port) {
     this(ManagedChannelBuilder.forAddress(host, port)
         // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
         // needing certificates.
@@ -40,10 +39,10 @@ public class MatchmakerTestClient {
   /**
    * Construct client for accessing HelloWorld server using the existing channel.
    */
-  MatchmakerTestClient(ManagedChannel channel) {
+  TestClient(ManagedChannel channel) {
     this.channel = channel;
-    blockingStub = MatchmakerGrpc.newBlockingStub(channel);
-    nonblockingStub = MatchmakerGrpc.newStub(channel);
+    blockingStub = BrokerGrpc.newBlockingStub(channel);
+    nonblockingStub = BrokerGrpc.newStub(channel);
   }
 
   public void shutdown() throws InterruptedException {
@@ -109,7 +108,7 @@ public class MatchmakerTestClient {
   }
 
   public static void main(String[] args) throws InterruptedException {
-    MatchmakerTestClient client = new MatchmakerTestClient("localhost", 2802);
+    TestClient client = new TestClient("localhost", 2802);
     int gameId = 0;
 
     try {

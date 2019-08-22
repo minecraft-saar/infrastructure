@@ -20,7 +20,7 @@ Infrastructure for connecting a Minecraft server to the NLG system.
 
 ### Start the Matchmaker
 
-Make a copy of `example-matchmaker-config.yaml` within the `broker` subdirectory, named `matchmaker-config.yaml`, and edit it as needed. Then start the matchmaker as follows:
+Make a copy of `example-broker-config.yaml` within the `broker` subdirectory, named `broker-config.yaml`, and edit it as needed. Then start the matchmaker as follows:
 
 ```
 ./gradlew broker:run
@@ -31,8 +31,9 @@ Make a copy of `example-matchmaker-config.yaml` within the `broker` subdirectory
 ### Start the dummy client
 
 ```
+./gradlew broker:shadowJar
 cd broker
-java -cp build/libs/broker-0.1.0-SNAPSHOT-all.jar de.saar.minecraft.matchmaker.MatchmakerTestClient
+java -cp build/libs/broker-0.1.0-SNAPSHOT-all.jar de.saar.minecraft.broker.TestClient
 ```
 
-Send messages as explained in the Javadoc of MatchmakerTestClient.
+Send messages as explained in the Javadoc of TestClient.

@@ -1,4 +1,4 @@
-package de.saar.minecraft.matchmaker;
+package de.saar.minecraft.broker;
 
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
@@ -30,7 +30,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
-public class Matchmaker {
+public class Broker {
     private static final String MESSAGE_TYPE_ERROR = "ERROR";
     private static final String MESSAGE_TYPE_LOG = "LOG";
 
@@ -41,13 +41,13 @@ public class Matchmaker {
     private ArchitectGrpc.ArchitectBlockingStub blockingArchitectStub;
     private ManagedChannel channelToArchitect;
 
-    private final MatchmakerConfiguration config;
+    private final BrokerConfiguration config;
     private DSLContext jooq = null;
     private Connection conn = null;
 
     private final TextFormat.Printer pr = TextFormat.printer();
 
-    public Matchmaker(MatchmakerConfiguration config) {
+    public Broker(BrokerConfiguration config) {
         this.config = config;
         jooq = setupDatabase();
     }
@@ -82,10 +82,10 @@ public class Matchmaker {
         // TODO fail correctly if Architect server is not running
 
 
-        // open Matchmaker service
+        // open Broker service
         int port = config.getPort();
         server = ServerBuilder.forPort(port)
-                .addService(new MatchmakerImpl())
+                .addService(new BrokerImpl())
                 .build()
                 .start();
 
@@ -93,12 +93,12 @@ public class Matchmaker {
             @Override
             public void run() {
                 System.err.println("*** shutting down gRPC server since JVM is shutting down");
-                Matchmaker.this.stop();
+                Broker.this.stop();
                 System.err.println("*** server shut down");
             }
         });
 
-        System.err.println("Matchmaker service running.");
+        System.err.println("Broker service running.");
     }
 
     private void stop() {
@@ -117,7 +117,7 @@ public class Matchmaker {
     }
 
 
-    private class MatchmakerImpl extends MatchmakerGrpc.MatchmakerImplBase {
+    private class BrokerImpl extends BrokerGrpc.BrokerImplBase {
         /**
          * Handles the start of a game. Creates a record for this game in the database
          * and returns a unique game ID to the client.
@@ -270,12 +270,12 @@ public class Matchmaker {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        MatchmakerConfiguration config = MatchmakerConfiguration.loadYaml(new FileReader("matchmaker-config.yaml"));
+        BrokerConfiguration config = BrokerConfiguration.loadYaml(new FileReader("broker-config.yaml"));
 
         System.err.println("jdbc: " + config.getDatabase());
         System.err.println("architect: " + config.getArchitectServer().getPort());
 
-        Matchmaker server = new Matchmaker(config);
+        Broker server = new Broker(config);
         server.start();
         server.blockUntilShutdown();
     }

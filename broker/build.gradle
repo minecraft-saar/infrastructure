@@ -23,7 +23,7 @@ dependencies {
 
 startScripts.enabled = false
 
-mainClassName = "de.saar.minecraft.matchmaker.Matchmaker"
+mainClassName = "de.saar.minecraft.broker.Broker"
 
 
 
