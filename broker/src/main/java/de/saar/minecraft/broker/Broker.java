@@ -79,9 +79,26 @@ public class Broker {
             }
         }
 
-        System.err.println("Could not connect to database, terminating.");
-        System.exit(0);
-        return null;
+        System.err.println("Could not connect to database; setting up temporary in-memory database.");
+
+        try {
+            Class.forName("org.h2.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        try {
+            conn = DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "", "");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        // TODO create tables
+
+        DSLContext ret = DSL.using(conn, SQLDialect.H2);
+        return ret;
     }
 
     private void start() throws IOException {

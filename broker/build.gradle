@@ -15,6 +15,10 @@ dependencies {
 
     jooqRuntime "mysql:mysql-connector-java:5.1.6"
 
+    implementation 'org.apache.commons:commons-collections4:4.4'
+    implementation 'com.h2database:h2:1.4.199'
+
+
     // YAML
     implementation "org.yaml:snakeyaml:1.25"
 
