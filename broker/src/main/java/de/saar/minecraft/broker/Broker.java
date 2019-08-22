@@ -89,7 +89,10 @@ public class Broker {
         }
 
         try {
-            conn = DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "", "");
+            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1";
+            config.getDatabase().setUrl(url);
+            config.getDatabase().setSqlDialect("H2");
+            conn = DriverManager.getConnection(url, "", "");
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(1);
