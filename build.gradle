@@ -1,3 +1,15 @@
+// add guava 27 to the classpath of the *build script*
+// see https://github.com/spotbugs/spotbugs-gradle-plugin/issues/120
+// solution taken from https://github.com/GoogleContainerTools/jib/issues/591
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.google.guava:guava:27.0.1-jre")
+    }
+}
+
 plugins {
     // Provide convenience executables for trying out the examples.
     id 'application'
@@ -7,7 +19,7 @@ plugins {
     id 'idea'
     id 'com.github.johnrengelman.shadow' version '5.0.0'
     id 'pl.allegro.tech.build.axion-release' version '1.10.1'
-    // id "com.github.spotbugs" version "2.0.0"
+    id "com.github.spotbugs" version "2.0.0"
 	id 'checkstyle'
 }
 
@@ -27,9 +39,18 @@ version = scmVersion.version
 
 sourceCompatibility = 1.11
 
-// spotbugs {
-//   toolVersion = '4.0.0-beta3'
-// }
+spotbugs {
+	toolVersion = '4.0.0-beta3'
+	ignoreFailures = true
+}
+tasks.withType(com.github.spotbugs.SpotBugsTask) {
+	reports {
+		xml.enabled = false
+		text.enabled = true
+		html.enabled = false
+	}
+}
+
 checkstyle {
 	toolVersion "8.19"
 	// use one common config file for all subprojects
