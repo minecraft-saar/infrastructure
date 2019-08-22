@@ -55,7 +55,7 @@ public class Matchmaker {
   }
 
   private void stop() {
-    if( server != null ) {
+    if (server != null) {
       server.shutdown();
     }
   }
@@ -73,9 +73,6 @@ public class Matchmaker {
     /**
      * Handles the start of a game. Creates a record for this game in the database
      * and returns a unique game ID to the client.
-     *
-     * @param request
-     * @param responseObserver
      */
     @Override
     public void startGame(GameData request, StreamObserver<GameId> responseObserver) {
@@ -84,11 +81,14 @@ public class Matchmaker {
       log("rcvd: " + request);
 
       // tell architect about the new game
-      GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).setGameData(request.getGameData()).build();
+      GameDataWithId mcGameDataWithId = GameDataWithId.newBuilder()
+          .setId(id)
+          .setGameData(request.getGameData())
+          .build();
       System.err.println("x");
-      Void x = blockingArchitectStub.startGame(mGameDataWithId);
+      Void x = blockingArchitectStub.startGame(mcGameDataWithId);
       System.err.println("got " + x);
-//            nonblockingArchitectStub.startGame(mGameDataWithId, new DummyStreamObserver<>());
+      //  nonblockingArchitectStub.startGame(mcGameDataWithId, new DummyStreamObserver<>());
       System.err.println("y");
 
       // tell client the game ID
@@ -102,14 +102,13 @@ public class Matchmaker {
      * Handles a status update from the Minecraft server. Optionally, sends back a TextMessage
      * with a string that is to be displayed to the user. Because calculating this text message
      * may take a long time, this method should be called asynchronously (with a non-blocking stub).
-     *
-     * @param request
-     * @param responseObserver
      */
     @Override
-    public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
+    public void handleStatusInformation(StatusMessage request,
+        StreamObserver<TextMessage> responseObserver) {
       log("rcvd: " + request);
-      nonblockingArchitectStub.handleStatusInformation(request, new DelegatingStreamObserver<>(responseObserver));
+      nonblockingArchitectStub.handleStatusInformation(request,
+          new DelegatingStreamObserver<>(responseObserver));
     }
   }
 
@@ -160,6 +159,9 @@ public class Matchmaker {
     System.err.println("Logged: " + message);
   }
 
+  /**
+   * Starts a matchmaker.
+   * */
   public static void main(String[] args) throws IOException, InterruptedException {
     Matchmaker server = new Matchmaker();
     server.start();

@@ -15,7 +15,7 @@ public class ArchitectServer {
   private Server server;
   private Map<Integer,Architect> runningArchitects;
 
-  public ArchitectServer(){
+  public ArchitectServer() {
     runningArchitects = new HashMap<>();
   }
 
@@ -40,7 +40,7 @@ public class ArchitectServer {
   }
 
   private void stop() {
-    if( server != null ) {
+    if (server != null) {
       server.shutdown();
     }
   }
@@ -57,9 +57,6 @@ public class ArchitectServer {
   private class ArchitectImpl extends ArchitectGrpc.ArchitectImplBase {
     /**
      * Creates a new architect instance for the new game.
-     *
-     * @param request
-     * @param responseObserver
      */
     @Override
     public void startGame(GameDataWithId request, StreamObserver<Void> responseObserver) {
@@ -74,12 +71,10 @@ public class ArchitectServer {
 
     /**
      * Delegates the status message to the architect for the given game ID.
-     *
-     * @param request
-     * @param responseObserver
      */
     @Override
-    public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
+    public void handleStatusInformation(StatusMessage request,
+        StreamObserver<TextMessage> responseObserver) {
       Architect arch = runningArchitects.get(request.getGameId());
       System.err.printf("retrieved architect for id %d: %s\n", request.getGameId(), arch);
       arch.handleStatusInformation(request, responseObserver);
@@ -89,7 +84,8 @@ public class ArchitectServer {
   private static class DummyArchitect implements Architect {
 
     @Override
-    public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
+    public void handleStatusInformation(StatusMessage request,
+        StreamObserver<TextMessage> responseObserver) {
       int x = request.getX();
       int gameId = request.getGameId();
 
@@ -98,7 +94,7 @@ public class ArchitectServer {
         @Override
         public void run() {
           String text = "your x was " + x;
-          TextMessage mText = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
+          TextMessage message = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
 
           // delay for a bit
           try {
@@ -108,7 +104,7 @@ public class ArchitectServer {
           }
 
           // send the text message back to the client
-          responseObserver.onNext(mText);
+          responseObserver.onNext(message);
           responseObserver.onCompleted();
         }
       }.start();
@@ -116,6 +112,9 @@ public class ArchitectServer {
   }
 
 
+  /**
+   * Starts an architect server.
+   */
   public static void main(String[] args) throws IOException, InterruptedException {
     ArchitectServer server = new ArchitectServer();
     server.start();

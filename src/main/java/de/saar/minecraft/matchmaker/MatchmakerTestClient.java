@@ -69,7 +69,12 @@ public class MatchmakerTestClient {
    * any text messages that the matchmaker sends back.
    */
   public void sendStatusMessage(int gameId, int x, int y, int z) {
-    StatusMessage mcStatus = StatusMessage.newBuilder().setGameId(gameId).setX(x).setY(y).setZ(z).build();
+    StatusMessage mcStatus = StatusMessage.newBuilder()
+        .setGameId(gameId)
+        .setX(x)
+        .setY(y)
+        .setZ(z)
+        .build();
 
     nonblockingStub.handleStatusInformation(mcStatus, new StreamObserver<TextMessage>() {
       @Override
@@ -88,6 +93,9 @@ public class MatchmakerTestClient {
 
   }
 
+  /**
+   * Starts a test client which connects to localhost:2802.
+   */
   public static void main(String[] args) throws InterruptedException {
     MatchmakerTestClient client = new MatchmakerTestClient("localhost", 2802);
 
