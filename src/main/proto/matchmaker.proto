@@ -11,6 +11,7 @@ import "shared.proto";
 
 service Matchmaker {
     rpc StartGame (GameData) returns (GameId) {}
+    rpc EndGame (GameId) returns (Void) {}
     rpc HandleStatusInformation (StatusMessage) returns (stream TextMessage) {}
 }
 
@@ -18,8 +19,4 @@ service Matchmaker {
 message GameData {
     string clientAddress = 1;
     string playerName = 2;
-}
-
-message GameId {
-    int32 id = 1;
 }

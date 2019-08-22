@@ -1,9 +1,14 @@
 package de.saar.minecraft.architect;
 
+import com.google.rpc.Code;
+import com.google.rpc.Status;
+import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
+import de.saar.minecraft.shared.Void;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
@@ -70,6 +75,14 @@ public class ArchitectServer {
             System.err.printf("architect for id %d: %s\n", request.getId(), arch);
         }
 
+        @Override
+        public void endGame(GameId request, StreamObserver<Void> responseObserver) {
+            runningArchitects.remove(request.getId());
+            System.err.printf("architect for id %d finished\n", request.getId());
+            responseObserver.onNext(Void.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+
         /**
          * Delegates the status message to the architect for the given game ID.
          *
@@ -79,8 +92,16 @@ public class ArchitectServer {
         @Override
         public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
             Architect arch = runningArchitects.get(request.getGameId());
-            System.err.printf("retrieved architect for id %d: %s\n", request.getGameId(), arch);
-            arch.handleStatusInformation(request, responseObserver);
+
+            if( arch == null ) {
+                Status status = Status.newBuilder()
+                        .setCode(Code.INVALID_ARGUMENT.getNumber())
+                        .setMessage("No architect running for game ID " + request.getGameId())
+                        .build();
+                responseObserver.onError(StatusProto.toStatusRuntimeException(status));
+            } else {
+                arch.handleStatusInformation(request, responseObserver);
+            }
         }
     }
 

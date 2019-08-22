@@ -20,6 +20,10 @@ message TextMessage {
 }
 
 
+message GameId {
+    int32 id = 1;
+}
+
 
 message Void {
 

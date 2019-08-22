@@ -1,6 +1,7 @@
 package de.saar.minecraft.matchmaker;
 
 import com.google.protobuf.TextFormat;
+import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import io.grpc.ManagedChannel;
@@ -78,6 +79,13 @@ public class MatchmakerTestClient {
         return mGameId.getId();
     }
 
+
+
+    public  void finishGame(int gameId) {
+        GameId mGameId = GameId.newBuilder().setId(gameId).build();
+        blockingStub.endGame(mGameId);
+    }
+
     /**
      * Sends a status message for the given game ID to the matchmaker. Handles
      * any text messages that the matchmaker sends back.
@@ -98,6 +106,7 @@ public class MatchmakerTestClient {
 
             @Override
             public void onError(Throwable t) {
+                System.err.println("ERROR: " + t.toString());
             }
 
             @Override
@@ -109,6 +118,7 @@ public class MatchmakerTestClient {
 
     public static void main(String[] args) throws InterruptedException {
         MatchmakerTestClient client = new MatchmakerTestClient("localhost", 2802);
+        int gameId = 0;
 
         try {
             while (true) {
@@ -116,13 +126,14 @@ public class MatchmakerTestClient {
                 String gameData = System.console().readLine();
 
                 if (gameData == null) {
+                    client.finishGame(gameId);
                     break;
                 } else if (gameData.startsWith(STATUS)) {
                     int id = Integer.parseInt(gameData.substring(STATUS.length() + 1));
                     client.sendStatusMessage(id, 1, 2, 3);
                 } else {
-                    int playerId = client.registerGame(gameData);
-                    System.err.printf("got game ID %d\n", playerId);
+                    gameId = client.registerGame(gameData);
+                    System.err.printf("got game ID %d\n", gameId);
                 }
             }
         } finally {

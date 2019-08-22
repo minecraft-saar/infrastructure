@@ -8,13 +8,16 @@ import de.saar.minecraft.architect.GameDataWithId;
 import de.saar.minecraft.matchmaker.db.Tables;
 import de.saar.minecraft.matchmaker.db.enums.GameLogsDirection;
 import de.saar.minecraft.matchmaker.db.enums.GamesStatus;
-import de.saar.minecraft.matchmaker.db.tables.GameLogs;
 import de.saar.minecraft.matchmaker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.matchmaker.db.tables.records.GamesRecord;
+import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.Void;
-import io.grpc.*;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
@@ -147,6 +150,14 @@ public class Matchmaker {
             responseObserver.onCompleted();
 
             setGameStatus(id, GamesStatus.running);
+        }
+
+        @Override
+        public void endGame(GameId request, StreamObserver<Void> responseObserver) {
+            log(request.getId(), request, GameLogsDirection.PassToArchitect);
+            blockingArchitectStub.endGame(request);
+
+            setGameStatus(request.getId(), GamesStatus.finished);
         }
 
         /**
