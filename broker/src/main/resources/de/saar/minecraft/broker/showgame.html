@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Details for game {{ game.id }} </title>
+</head>
+
+<body>
+    <h1>Details for game {{ game.id }}</h1>
+
+    Connection from {{ game.clientIp }}<br/>
+    Player name: {{ game.playerName }}<br/>
+    Start time: {{ game.startTime }}<br/>
+
+    <br/>
+
+    Architect at {{ game.architectHostname }}:{{ game.architectPort }}<br/>
+    {{ game.architectInfo }}<br/>
+
+    <br/>
+
+    Game status: {{ game.status }}
+
+    <br/>
+
+    <h1>Game Log</h1>
+    <table border="0">
+        {% for row in log %}
+        <tr>
+            <td width="20%">{{ row.timestamp }}</td>
+            <td>{{ row.direction }}</td>
+            <td>{{ row.messageType }}</td>
+            <td>{{ row.message }}</td>
+        </tr>
+        {% end %}
+    </table>
+</body>
+</html>

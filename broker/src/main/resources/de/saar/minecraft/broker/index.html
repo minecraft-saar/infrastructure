@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Minecraft Broker - Start</title>
+</head>
+<body>
+    <h1>Minecraft Broker: Start page</h1>
+
+    <h2>Database connection</h2>
+    Connected to {{ config.database.url }} ({{ config.database.sqlDialect }})
+
+    <h2>Last 20 games</h2>
+    {% for row in latest %}
+      <a href="showgame.html?id={{ row.id }}">{{ row.id }}</a> from {{ row.clientIp }}: {{ row.status }}<br/>
+    {% end %}
+</body>
+</html>

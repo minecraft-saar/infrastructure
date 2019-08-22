@@ -8,6 +8,7 @@ public class BrokerConfiguration {
     private ArchitectServerAddress architectServer;
     private DatabaseAddress database;
     private int port;
+    private int httpPort;
 
     public static BrokerConfiguration loadYaml(Reader reader) {
         Yaml yaml = new Yaml();
@@ -37,6 +38,14 @@ public class BrokerConfiguration {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public int getHttpPort() {
+        return httpPort;
+    }
+
+    public void setHttpPort(int httpPort) {
+        this.httpPort = httpPort;
     }
 
     public static class DatabaseAddress {

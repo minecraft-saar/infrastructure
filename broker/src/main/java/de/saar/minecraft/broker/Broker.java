@@ -50,6 +50,21 @@ public class Broker {
     public Broker(BrokerConfiguration config) {
         this.config = config;
         jooq = setupDatabase();
+
+        try {
+            new HttpServer().start(this);
+        } catch (IOException e) {
+            System.err.println("Could not open HTTP server, will run without it.");
+            e.printStackTrace();
+        }
+    }
+
+    DSLContext getJooq() {
+        return jooq;
+    }
+
+    public BrokerConfiguration getConfig() {
+        return config;
     }
 
     private DSLContext setupDatabase() {

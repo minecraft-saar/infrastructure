@@ -1,5 +1,7 @@
 port: 2802
 
+httpPort: 8080
+
 architectServer:
   hostname: localhost
   port: 10000
