@@ -1,0 +1,7 @@
+database: "jdbc:mysql://localhost:3306/minecraft"
+port: 2802
+
+architectServer:
+  hostname: localhost
+  port: 10000
+

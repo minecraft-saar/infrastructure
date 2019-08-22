@@ -10,6 +10,7 @@ import de.saar.minecraft.matchmaker.db.Minecraft;
 import de.saar.minecraft.matchmaker.db.enums.GameLogsDirection;
 import de.saar.minecraft.matchmaker.db.tables.records.GameLogsRecord;
 
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -43,7 +44,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class GameLogs extends TableImpl<GameLogsRecord> {
 
-    private static final long serialVersionUID = -816397941;
+    private static final long serialVersionUID = 593964548;
 
     /**
      * The reference instance of <code>minecraft.game_logs</code>
@@ -71,17 +72,17 @@ public class GameLogs extends TableImpl<GameLogsRecord> {
     /**
      * The column <code>minecraft.game_logs.direction</code>.
      */
-    public final TableField<GameLogsRecord, GameLogsDirection> DIRECTION = createField("direction", org.jooq.impl.SQLDataType.VARCHAR(13).asEnumDataType(de.saar.minecraft.matchmaker.db.enums.GameLogsDirection.class), this, "");
+    public final TableField<GameLogsRecord, GameLogsDirection> DIRECTION = createField("direction", org.jooq.impl.SQLDataType.VARCHAR(15).asEnumDataType(de.saar.minecraft.matchmaker.db.enums.GameLogsDirection.class), this, "");
 
     /**
-     * The column <code>minecraft.game_logs.message_type</code>.
+     * The column <code>minecraft.game_logs.message</code>.
      */
-    public final TableField<GameLogsRecord, String> MESSAGE_TYPE = createField("message_type", org.jooq.impl.SQLDataType.VARCHAR(100), this, "");
+    public final TableField<GameLogsRecord, String> MESSAGE = createField("message", org.jooq.impl.SQLDataType.VARCHAR(100), this, "");
 
     /**
-     * The column <code>minecraft.game_logs.message_arguments</code>.
+     * The column <code>minecraft.game_logs.timestamp</code>.
      */
-    public final TableField<GameLogsRecord, String> MESSAGE_ARGUMENTS = createField("message_arguments", org.jooq.impl.SQLDataType.VARCHAR(500), this, "");
+    public final TableField<GameLogsRecord, Timestamp> TIMESTAMP = createField("timestamp", org.jooq.impl.SQLDataType.TIMESTAMP, this, "");
 
     /**
      * Create a <code>minecraft.game_logs</code> table reference

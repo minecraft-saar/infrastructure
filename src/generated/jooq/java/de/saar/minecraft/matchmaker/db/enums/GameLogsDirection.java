@@ -30,7 +30,11 @@ public enum GameLogsDirection implements EnumType {
 
     FROMARCHITECT("FROMARCHITECT"),
 
-    TOARCHITECT("TOARCHITECT");
+    TOARCHITECT("TOARCHITECT"),
+
+    PASSTOCLIENT("PASSTOCLIENT"),
+
+    PASSTOARCHITECT("PASSTOARCHITECT");
 
     private final String literal;
 

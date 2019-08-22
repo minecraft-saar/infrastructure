@@ -1,14 +1,28 @@
 package de.saar.minecraft.matchmaker;
 
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
 import de.saar.minecraft.architect.GameDataWithId;
+import de.saar.minecraft.matchmaker.db.Tables;
+import de.saar.minecraft.matchmaker.db.enums.GameLogsDirection;
+import de.saar.minecraft.matchmaker.db.tables.GameLogs;
+import de.saar.minecraft.matchmaker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.Void;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
+import org.jooq.DSLContext;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
 
+import java.io.FileReader;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 
 public class Matchmaker {
     private Server server;
@@ -18,9 +32,36 @@ public class Matchmaker {
     private ArchitectGrpc.ArchitectBlockingStub blockingArchitectStub;
     private ManagedChannel channelToArchitect;
 
+    private final MatchmakerConfiguration config;
+    private DSLContext jooq = null;
+    private Connection conn = null;
+
+    private final TextFormat.Printer pr = TextFormat.printer();
+
+    public Matchmaker(MatchmakerConfiguration config) {
+        this.config = config;
+        jooq = setupDatabase();
+    }
+
+    private DSLContext setupDatabase() {
+        if( config.getDatabase() != null ) {
+            try {
+                conn = DriverManager.getConnection(config.getDatabase().getUrl(), config.getDatabase().getUsername(), config.getDatabase().getPassword());
+                DSLContext ret = DSL.using(conn, SQLDialect.valueOf(config.getDatabase().getSqlDialect()));
+                return ret;
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        System.err.println("Could not connect to database, terminating.");
+        System.exit(0);
+        return null;
+    }
+
     private void start() throws IOException {
-        // connect to architect server; TODO: make this configurable
-        channelToArchitect = ManagedChannelBuilder.forAddress("localhost", 10000)
+        // connect to architect server
+        channelToArchitect = ManagedChannelBuilder.forAddress(config.getArchitectServer().getHostname(), config.getArchitectServer().getPort())
                 // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
                 // needing certificates.
                 .usePlaintext()
@@ -33,7 +74,7 @@ public class Matchmaker {
 
 
         // open Matchmaker service
-        int port = 2802;
+        int port = config.getPort();
         server = ServerBuilder.forPort(port)
                 .addService(new MatchmakerImpl())
                 .build()
@@ -105,8 +146,8 @@ public class Matchmaker {
          */
         @Override
         public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
-            log("rcvd: " + request);
-            nonblockingArchitectStub.handleStatusInformation(request, new DelegatingStreamObserver<>(responseObserver));
+            log(request.getGameId(), request, GameLogsDirection.FROMCLIENT);
+            nonblockingArchitectStub.handleStatusInformation(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
         }
     }
 
@@ -128,22 +169,24 @@ public class Matchmaker {
         }
     }
 
-    private class DelegatingStreamObserver<E> implements StreamObserver<E> {
+    private class DelegatingStreamObserver<E extends MessageOrBuilder> implements StreamObserver<E> {
         private StreamObserver<E> toClient;
+        private int gameId;
 
-        public DelegatingStreamObserver(StreamObserver<E> toClient) {
+        public DelegatingStreamObserver(int gameId, StreamObserver<E> toClient) {
             this.toClient = toClient;
+            this.gameId = gameId;
         }
 
         @Override
         public void onNext(E value) {
-            log("sent: " + value);
             toClient.onNext(value);
+            log(gameId, value, GameLogsDirection.PASSTOCLIENT);
         }
 
         @Override
         public void onError(Throwable t) {
-            log("error: " + t.toString());
+            log(gameId, t, GameLogsDirection.PASSTOCLIENT);
             toClient.onError(t);
         }
 
@@ -153,12 +196,39 @@ public class Matchmaker {
         }
     }
 
+    private void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
+        String messageStr = pr.printToString(message);
+
+        GameLogsRecord rec = jooq.newRecord(Tables.GAME_LOGS);
+        rec.setGameid(gameid);
+        rec.setDirection(direction);
+        rec.setMessage(messageStr);
+        rec.setTimestamp(new Timestamp(System.currentTimeMillis()));
+        rec.store();
+    }
+
+    private void log(int gameid, Throwable message, GameLogsDirection direction) {
+        String messageStr = "ERROR: " + message.toString();
+
+        GameLogsRecord rec = jooq.newRecord(Tables.GAME_LOGS);
+        rec.setGameid(gameid);
+        rec.setDirection(direction);
+        rec.setMessage(messageStr);
+        rec.setTimestamp(new Timestamp(System.currentTimeMillis()));
+        rec.store();
+    }
+
     private void log(String message) {
         System.err.println("Logged: " + message);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        Matchmaker server = new Matchmaker();
+        MatchmakerConfiguration config = MatchmakerConfiguration.loadYaml(new FileReader("matchmaker-config.yaml"));
+
+        System.err.println("jdbc: " + config.getDatabase());
+        System.err.println("architect: " + config.getArchitectServer().getPort());
+
+        Matchmaker server = new Matchmaker(config);
         server.start();
         server.blockUntilShutdown();
     }
