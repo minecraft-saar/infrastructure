@@ -3,6 +3,7 @@ package de.saar.minecraft.matchmaker;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
+import de.saar.minecraft.architect.ArchitectInformation;
 import de.saar.minecraft.architect.GameDataWithId;
 import de.saar.minecraft.matchmaker.db.Tables;
 import de.saar.minecraft.matchmaker.db.enums.GameLogsDirection;
@@ -133,7 +134,12 @@ public class Matchmaker {
 
             // tell architect about the new game
             GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).build();
-            Void x = blockingArchitectStub.startGame(mGameDataWithId);
+            ArchitectInformation info = blockingArchitectStub.startGame(mGameDataWithId);
+
+            rec.setArchitectHostname(config.getArchitectServer().getHostname());
+            rec.setArchitectPort(config.getArchitectServer().getPort());
+            rec.setArchitectInfo(info.getInfo());
+            rec.store();
 
             // tell client the game ID
             GameId idMessage = GameId.newBuilder().setId(id).build();

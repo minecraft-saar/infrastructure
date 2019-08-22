@@ -6,4 +6,5 @@ import io.grpc.stub.StreamObserver;
 
 public interface Architect {
     public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver);
+    public String getArchitectInformation();
 }

@@ -2,7 +2,6 @@ package de.saar.minecraft.architect;
 
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
-import de.saar.minecraft.shared.Void;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -61,11 +60,11 @@ public class ArchitectServer {
          * @param responseObserver
          */
         @Override
-        public void startGame(GameDataWithId request, StreamObserver<Void> responseObserver) {
+        public void startGame(GameDataWithId request, StreamObserver<ArchitectInformation> responseObserver) {
             System.err.println("a");
             Architect arch = new DummyArchitect();
             runningArchitects.put(request.getId(), arch);
-            responseObserver.onNext(Void.newBuilder().build());
+            responseObserver.onNext(ArchitectInformation.newBuilder().setInfo(arch.getArchitectInformation()).build());
             responseObserver.onCompleted();
 
             System.err.printf("architect for id %d: %s\n", request.getId(), arch);
@@ -82,35 +81,6 @@ public class ArchitectServer {
             Architect arch = runningArchitects.get(request.getGameId());
             System.err.printf("retrieved architect for id %d: %s\n", request.getGameId(), arch);
             arch.handleStatusInformation(request, responseObserver);
-        }
-    }
-
-    private static class DummyArchitect implements Architect {
-
-        @Override
-        public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
-            int x = request.getX();
-            int gameId = request.getGameId();
-
-            // spawn a thread for a long-running computation
-            new Thread() {
-                @Override
-                public void run() {
-                    String text = "your x was " + x;
-                    TextMessage mText = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
-
-                    // delay for a bit
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                    // send the text message back to the client
-                    responseObserver.onNext(mText);
-                    responseObserver.onCompleted();
-                }
-            }.start();
         }
     }
 

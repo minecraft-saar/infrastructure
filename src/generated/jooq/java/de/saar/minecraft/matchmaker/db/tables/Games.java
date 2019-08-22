@@ -43,7 +43,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Games extends TableImpl<GamesRecord> {
 
-    private static final long serialVersionUID = -788016766;
+    private static final long serialVersionUID = -551249563;
 
     /**
      * The reference instance of <code>minecraft.games</code>
@@ -82,6 +82,21 @@ public class Games extends TableImpl<GamesRecord> {
      * The column <code>minecraft.games.status</code>.
      */
     public final TableField<GamesRecord, GamesStatus> STATUS = createField("status", org.jooq.impl.SQLDataType.VARCHAR(8).asEnumDataType(de.saar.minecraft.matchmaker.db.enums.GamesStatus.class), this, "");
+
+    /**
+     * The column <code>minecraft.games.architect_hostname</code>.
+     */
+    public final TableField<GamesRecord, String> ARCHITECT_HOSTNAME = createField("architect_hostname", org.jooq.impl.SQLDataType.VARCHAR(100), this, "");
+
+    /**
+     * The column <code>minecraft.games.architect_port</code>.
+     */
+    public final TableField<GamesRecord, Integer> ARCHITECT_PORT = createField("architect_port", org.jooq.impl.SQLDataType.INTEGER, this, "");
+
+    /**
+     * The column <code>minecraft.games.architect_info</code>.
+     */
+    public final TableField<GamesRecord, String> ARCHITECT_INFO = createField("architect_info", org.jooq.impl.SQLDataType.VARCHAR(500), this, "");
 
     /**
      * Create a <code>minecraft.games</code> table reference
