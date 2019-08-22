@@ -90,7 +90,7 @@ jooq {
       }
       
       target {
-        packageName = 'de.saar.minecraft.matchmaker.db'
+        packageName = 'de.saar.minecraft.broker.db'
 	directory = 'src/generated/jooq/java'
       }
     }
