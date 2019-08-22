@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "de.saar.minecraft.matchmaker";
+option java_outer_classname = "MatchmakerProto";
+option objc_class_prefix = "MM";
+
+package matchmaker;
+
+
+service Matchmaker {
+    rpc StartGame (GameData) returns (GameId) {}
+}
+
+
+message GameData {
+    string gameIdentifier = 1;
+}
+
+message GameId {
+    int32 id = 1;
+}
+
