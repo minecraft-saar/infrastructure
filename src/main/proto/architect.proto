@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "de.saar.minecraft.architect";
+option java_outer_classname = "ArchitectProto";
+
+package minecraft;
+
+import "shared.proto";
+
+
+service Architect {
+    rpc StartGame (GameDataWithId) returns (Void) {}
+    rpc HandleStatusInformation (StatusMessage) returns (stream TextMessage) {}
+}
+
+
+message GameDataWithId {
+    int32 id = 1;
+    string gameData = 2;
+}

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "de.saar.minecraft.shared";
+option java_outer_classname = "SharedProto";
+
+package minecraft;
+
+
+message StatusMessage {
+    int32 gameId = 1;
+    int32 x = 2;
+    int32 y = 3;
+    int32 z = 4;
+}
+
+message TextMessage {
+    int32 gameId = 1;
+    string text = 2;
+}
+
+
+
+message Void {
+
+}

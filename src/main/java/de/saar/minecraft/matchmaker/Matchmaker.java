@@ -1,7 +1,11 @@
 package de.saar.minecraft.matchmaker;
 
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
+import de.saar.minecraft.architect.ArchitectGrpc;
+import de.saar.minecraft.architect.GameDataWithId;
+import de.saar.minecraft.shared.StatusMessage;
+import de.saar.minecraft.shared.TextMessage;
+import de.saar.minecraft.shared.Void;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 
 import java.io.IOException;
@@ -10,7 +14,25 @@ public class Matchmaker {
     private Server server;
     private static int nextGameId = 1;
 
+    private ArchitectGrpc.ArchitectStub nonblockingArchitectStub;
+    private ArchitectGrpc.ArchitectBlockingStub blockingArchitectStub;
+    private ManagedChannel channelToArchitect;
+
     private void start() throws IOException {
+        // connect to architect server; TODO: make this configurable
+        channelToArchitect = ManagedChannelBuilder.forAddress("localhost", 10000)
+                // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
+                // needing certificates.
+                .usePlaintext()
+                .build();
+        nonblockingArchitectStub = ArchitectGrpc.newStub(channelToArchitect);
+        blockingArchitectStub = ArchitectGrpc.newBlockingStub(channelToArchitect);
+        System.err.println("Connected to architect server.");
+
+        // TODO fail correctly if Architect server is not running
+
+
+        // open Matchmaker service
         int port = 2802;
         server = ServerBuilder.forPort(port)
                 .addService(new MatchmakerImpl())
@@ -26,7 +48,7 @@ public class Matchmaker {
             }
         });
 
-        System.err.println("Server running.");
+        System.err.println("Matchmaker service running.");
     }
 
     private void stop() {
@@ -44,7 +66,7 @@ public class Matchmaker {
         }
     }
 
-    private static class MatchmakerImpl extends MatchmakerGrpc.MatchmakerImplBase {
+    private class MatchmakerImpl extends MatchmakerGrpc.MatchmakerImplBase {
         /**
          * Handles the start of a game. Creates a record for this game in the database
          * and returns a unique game ID to the client.
@@ -56,10 +78,21 @@ public class Matchmaker {
         public void startGame(GameData request, StreamObserver<GameId> responseObserver) {
             int id = nextGameId++;
 
-            System.err.printf("start game %s -> id %d\n", request.getGameData(), id);
+            log("rcvd: " + request);
+
+            // tell architect about the new game
+            GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).setGameData(request.getGameData()).build();
+            System.err.println("x");
+            Void x = blockingArchitectStub.startGame(mGameDataWithId);
+            System.err.println("got " + x);
+//            nonblockingArchitectStub.startGame(mGameDataWithId, new DummyStreamObserver<>());
+            System.err.println("y");
+
+            // tell client the game ID
             GameId idMessage = GameId.newBuilder().setId(id).build();
             responseObserver.onNext(idMessage);
             responseObserver.onCompleted();
+            log("sent: " + idMessage);
         }
 
         /**
@@ -72,29 +105,56 @@ public class Matchmaker {
          */
         @Override
         public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
-            int x = request.getX();
-            int gameId = request.getGameId();
-
-            // spawn a thread for a long-running computation
-            new Thread() {
-                @Override
-                public void run() {
-                    String text = "your x was " + x;
-                    TextMessage mText = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
-
-                    // delay for a bit
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                    // send the text message back to the client
-                    responseObserver.onNext(mText);
-                    responseObserver.onCompleted();
-                }
-            }.start();
+            log("rcvd: " + request);
+            nonblockingArchitectStub.handleStatusInformation(request, new DelegatingStreamObserver<>(responseObserver));
         }
+    }
+
+    private static class DummyStreamObserver<E> implements StreamObserver<E> {
+
+        @Override
+        public void onNext(E value) {
+
+        }
+
+        @Override
+        public void onError(Throwable t) {
+
+        }
+
+        @Override
+        public void onCompleted() {
+
+        }
+    }
+
+    private class DelegatingStreamObserver<E> implements StreamObserver<E> {
+        private StreamObserver<E> toClient;
+
+        public DelegatingStreamObserver(StreamObserver<E> toClient) {
+            this.toClient = toClient;
+        }
+
+        @Override
+        public void onNext(E value) {
+            log("sent: " + value);
+            toClient.onNext(value);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            log("error: " + t.toString());
+            toClient.onError(t);
+        }
+
+        @Override
+        public void onCompleted() {
+            toClient.onCompleted();
+        }
+    }
+
+    private void log(String message) {
+        System.err.println("Logged: " + message);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {

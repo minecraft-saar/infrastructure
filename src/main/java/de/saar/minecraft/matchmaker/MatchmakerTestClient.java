@@ -1,5 +1,7 @@
 package de.saar.minecraft.matchmaker;
 
+import de.saar.minecraft.shared.StatusMessage;
+import de.saar.minecraft.shared.TextMessage;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;

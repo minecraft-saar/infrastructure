@@ -3,9 +3,10 @@ syntax = "proto3";
 option java_multiple_files = true;
 option java_package = "de.saar.minecraft.matchmaker";
 option java_outer_classname = "MatchmakerProto";
-option objc_class_prefix = "MM";
 
-package matchmaker;
+package minecraft;
+
+import "shared.proto";
 
 
 service Matchmaker {
@@ -21,16 +22,3 @@ message GameData {
 message GameId {
     int32 id = 1;
 }
-
-message StatusMessage {
-    int32 gameId = 1;
-    int32 x = 2;
-    int32 y = 3;
-    int32 z = 4;
-}
-
-message TextMessage {
-    int32 gameId = 1;
-    string text = 2;
-}
-
