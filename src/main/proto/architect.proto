@@ -17,5 +17,4 @@ service Architect {
 
 message GameDataWithId {
     int32 id = 1;
-    string gameData = 2;
 }

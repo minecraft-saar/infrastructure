@@ -1,5 +1,6 @@
 package de.saar.minecraft.matchmaker;
 
+import com.google.protobuf.TextFormat;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import io.grpc.ManagedChannel;
@@ -7,6 +8,8 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -50,11 +53,20 @@ public class MatchmakerTestClient {
     /**
      * Registers a game with the matchmaker. Returns a unique game ID for this game.
      *
-     * @param gameData
+     * @param playerName
      * @return
      */
-    public int registerGame(String gameData) {
-        GameData mGameInfo = GameData.newBuilder().setGameData(gameData).build();
+    public int registerGame(String playerName) {
+        // TODO fill in PlayerLoginEvent#getAddress, Player#getDisplayName
+
+        String hostname = "localhost";
+        try {
+            hostname = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+        }
+
+        GameData mGameInfo = GameData.newBuilder().setClientAddress(hostname).setPlayerName(playerName).build();
+
         GameId mGameId;
         try {
             mGameId = blockingStub.startGame(mGameInfo);
@@ -100,7 +112,7 @@ public class MatchmakerTestClient {
 
         try {
             while (true) {
-                System.out.print("enter game data: ");
+                System.out.print("enter player name: ");
                 String gameData = System.console().readLine();
 
                 if (gameData == null) {

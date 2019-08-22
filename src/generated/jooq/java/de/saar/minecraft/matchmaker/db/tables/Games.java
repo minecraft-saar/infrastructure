@@ -7,6 +7,7 @@ package de.saar.minecraft.matchmaker.db.tables;
 import de.saar.minecraft.matchmaker.db.Indexes;
 import de.saar.minecraft.matchmaker.db.Keys;
 import de.saar.minecraft.matchmaker.db.Minecraft;
+import de.saar.minecraft.matchmaker.db.enums.GamesStatus;
 import de.saar.minecraft.matchmaker.db.tables.records.GamesRecord;
 
 import java.sql.Timestamp;
@@ -27,7 +28,6 @@ import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
-import org.jooq.types.UInteger;
 
 
 /**
@@ -43,7 +43,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Games extends TableImpl<GamesRecord> {
 
-    private static final long serialVersionUID = 1206369252;
+    private static final long serialVersionUID = -788016766;
 
     /**
      * The reference instance of <code>minecraft.games</code>
@@ -61,7 +61,7 @@ public class Games extends TableImpl<GamesRecord> {
     /**
      * The column <code>minecraft.games.id</code>.
      */
-    public final TableField<GamesRecord, UInteger> ID = createField("id", org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<GamesRecord, Integer> ID = createField("id", org.jooq.impl.SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>minecraft.games.client_ip</code>.
@@ -81,7 +81,7 @@ public class Games extends TableImpl<GamesRecord> {
     /**
      * The column <code>minecraft.games.status</code>.
      */
-    public final TableField<GamesRecord, String> STATUS = createField("status", org.jooq.impl.SQLDataType.VARCHAR(200), this, "");
+    public final TableField<GamesRecord, GamesStatus> STATUS = createField("status", org.jooq.impl.SQLDataType.VARCHAR(8).asEnumDataType(de.saar.minecraft.matchmaker.db.enums.GamesStatus.class), this, "");
 
     /**
      * Create a <code>minecraft.games</code> table reference
@@ -136,7 +136,7 @@ public class Games extends TableImpl<GamesRecord> {
      * {@inheritDoc}
      */
     @Override
-    public Identity<GamesRecord, UInteger> getIdentity() {
+    public Identity<GamesRecord, Integer> getIdentity() {
         return Keys.IDENTITY_GAMES;
     }
 

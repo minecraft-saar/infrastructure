@@ -16,7 +16,8 @@ service Matchmaker {
 
 
 message GameData {
-    string gameData = 1;
+    string clientAddress = 1;
+    string playerName = 2;
 }
 
 message GameId {

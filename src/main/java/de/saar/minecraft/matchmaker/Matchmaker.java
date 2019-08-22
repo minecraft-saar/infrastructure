@@ -6,8 +6,10 @@ import de.saar.minecraft.architect.ArchitectGrpc;
 import de.saar.minecraft.architect.GameDataWithId;
 import de.saar.minecraft.matchmaker.db.Tables;
 import de.saar.minecraft.matchmaker.db.enums.GameLogsDirection;
+import de.saar.minecraft.matchmaker.db.enums.GamesStatus;
 import de.saar.minecraft.matchmaker.db.tables.GameLogs;
 import de.saar.minecraft.matchmaker.db.tables.records.GameLogsRecord;
+import de.saar.minecraft.matchmaker.db.tables.records.GamesRecord;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.Void;
@@ -25,6 +27,9 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 
 public class Matchmaker {
+    private static final String MESSAGE_TYPE_ERROR = "ERROR";
+    private static final String MESSAGE_TYPE_LOG = "LOG";
+
     private Server server;
     private static int nextGameId = 1;
 
@@ -117,23 +122,25 @@ public class Matchmaker {
          */
         @Override
         public void startGame(GameData request, StreamObserver<GameId> responseObserver) {
-            int id = nextGameId++;
+            GamesRecord rec = jooq.newRecord(Tables.GAMES);
+            rec.setClientIp(request.getClientAddress());
+            rec.setPlayerName(request.getPlayerName());
+            rec.setStartTime(now());
+            rec.store();
 
-            log("rcvd: " + request);
+            int id = rec.getId();
+            setGameStatus(id, GamesStatus.created);
 
             // tell architect about the new game
-            GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).setGameData(request.getGameData()).build();
-            System.err.println("x");
+            GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).build();
             Void x = blockingArchitectStub.startGame(mGameDataWithId);
-            System.err.println("got " + x);
-//            nonblockingArchitectStub.startGame(mGameDataWithId, new DummyStreamObserver<>());
-            System.err.println("y");
 
             // tell client the game ID
             GameId idMessage = GameId.newBuilder().setId(id).build();
             responseObserver.onNext(idMessage);
             responseObserver.onCompleted();
-            log("sent: " + idMessage);
+
+            setGameStatus(id, GamesStatus.running);
         }
 
         /**
@@ -146,9 +153,25 @@ public class Matchmaker {
          */
         @Override
         public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
-            log(request.getGameId(), request, GameLogsDirection.FROMCLIENT);
+            log(request.getGameId(), request, GameLogsDirection.FromClient);
             nonblockingArchitectStub.handleStatusInformation(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
         }
+    }
+
+    private void setGameStatus(int gameid, GamesStatus status) {
+        // update status in games table
+        GamesRecord rec = jooq.fetchOne(Tables.GAMES, Tables.GAMES.ID.eq(gameid));
+        rec.setStatus(status);
+        rec.store();
+
+        // record updating of status in game_logs table
+        GameLogsRecord glr = jooq.newRecord(Tables.GAME_LOGS);
+        glr.setGameid(gameid);
+        glr.setDirection(GameLogsDirection.None);
+        glr.setMessageType(MESSAGE_TYPE_LOG);
+        glr.setMessage(String.format("Status of game %d changed to %s", gameid, status.toString()));
+        glr.setTimestamp(now());
+        glr.store();
     }
 
     private static class DummyStreamObserver<E> implements StreamObserver<E> {
@@ -181,12 +204,12 @@ public class Matchmaker {
         @Override
         public void onNext(E value) {
             toClient.onNext(value);
-            log(gameId, value, GameLogsDirection.PASSTOCLIENT);
+            log(gameId, value, GameLogsDirection.PassToClient);
         }
 
         @Override
         public void onError(Throwable t) {
-            log(gameId, t, GameLogsDirection.PASSTOCLIENT);
+            log(gameId, t, GameLogsDirection.PassToClient);
             toClient.onError(t);
         }
 
@@ -202,19 +225,25 @@ public class Matchmaker {
         GameLogsRecord rec = jooq.newRecord(Tables.GAME_LOGS);
         rec.setGameid(gameid);
         rec.setDirection(direction);
+        rec.setMessageType(message.getClass().getSimpleName());
         rec.setMessage(messageStr);
-        rec.setTimestamp(new Timestamp(System.currentTimeMillis()));
+        rec.setTimestamp(now());
         rec.store();
     }
 
+    private static Timestamp now() {
+        return new Timestamp(System.currentTimeMillis());
+    }
+
     private void log(int gameid, Throwable message, GameLogsDirection direction) {
-        String messageStr = "ERROR: " + message.toString();
+        String messageStr = message.toString();
 
         GameLogsRecord rec = jooq.newRecord(Tables.GAME_LOGS);
         rec.setGameid(gameid);
         rec.setDirection(direction);
         rec.setMessage(messageStr);
-        rec.setTimestamp(new Timestamp(System.currentTimeMillis()));
+        rec.setMessageType(MESSAGE_TYPE_ERROR);
+        rec.setTimestamp(now());
         rec.store();
     }
 

@@ -35,7 +35,7 @@ public class Keys {
     // IDENTITY definitions
     // -------------------------------------------------------------------------
 
-    public static final Identity<GamesRecord, UInteger> IDENTITY_GAMES = Identities0.IDENTITY_GAMES;
+    public static final Identity<GamesRecord, Integer> IDENTITY_GAMES = Identities0.IDENTITY_GAMES;
     public static final Identity<GameLogsRecord, UInteger> IDENTITY_GAME_LOGS = Identities0.IDENTITY_GAME_LOGS;
 
     // -------------------------------------------------------------------------
@@ -55,7 +55,7 @@ public class Keys {
     // -------------------------------------------------------------------------
 
     private static class Identities0 {
-        public static Identity<GamesRecord, UInteger> IDENTITY_GAMES = Internal.createIdentity(Games.GAMES, Games.GAMES.ID);
+        public static Identity<GamesRecord, Integer> IDENTITY_GAMES = Internal.createIdentity(Games.GAMES, Games.GAMES.ID);
         public static Identity<GameLogsRecord, UInteger> IDENTITY_GAME_LOGS = Internal.createIdentity(GameLogs.GAME_LOGS, GameLogs.GAME_LOGS.ID);
     }
 

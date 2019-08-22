@@ -44,7 +44,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class GameLogs extends TableImpl<GameLogsRecord> {
 
-    private static final long serialVersionUID = 593964548;
+    private static final long serialVersionUID = -1024262880;
 
     /**
      * The reference instance of <code>minecraft.game_logs</code>
@@ -75,9 +75,14 @@ public class GameLogs extends TableImpl<GameLogsRecord> {
     public final TableField<GameLogsRecord, GameLogsDirection> DIRECTION = createField("direction", org.jooq.impl.SQLDataType.VARCHAR(15).asEnumDataType(de.saar.minecraft.matchmaker.db.enums.GameLogsDirection.class), this, "");
 
     /**
+     * The column <code>minecraft.game_logs.message_type</code>.
+     */
+    public final TableField<GameLogsRecord, String> MESSAGE_TYPE = createField("message_type", org.jooq.impl.SQLDataType.VARCHAR(100), this, "");
+
+    /**
      * The column <code>minecraft.game_logs.message</code>.
      */
-    public final TableField<GameLogsRecord, String> MESSAGE = createField("message", org.jooq.impl.SQLDataType.VARCHAR(100), this, "");
+    public final TableField<GameLogsRecord, String> MESSAGE = createField("message", org.jooq.impl.SQLDataType.VARCHAR(500), this, "");
 
     /**
      * The column <code>minecraft.game_logs.timestamp</code>.
