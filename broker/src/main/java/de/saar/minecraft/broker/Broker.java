@@ -66,59 +66,6 @@ public class Broker {
         return config;
     }
 
-    private DSLContext setupDatabase() {
-        if (config.getDatabase() != null) {
-            try {
-                conn = DriverManager.getConnection(config.getDatabase().getUrl(), config.getDatabase().getUsername(), config.getDatabase().getPassword());
-                DSLContext ret = DSL.using(conn, SQLDialect.valueOf(config.getDatabase().getSqlDialect()));
-                return ret;
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
-
-        System.err.println("Could not connect to database; setting up temporary in-memory database.");
-
-        try {
-            Class.forName("org.h2.Driver");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
-
-        try {
-            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE"; // ;INIT=create schema if not exists minecraft
-
-            // create db configuration (for display on website)
-            BrokerConfiguration.DatabaseAddress db = new BrokerConfiguration.DatabaseAddress();
-            db.setUrl(url);
-            db.setSqlDialect("H2");
-            db.setUsername("");
-            db.setPassword("");
-            config.setDatabase(db);
-
-            // create schema "minecraft" and activate it
-            conn = DriverManager.getConnection(url, "", "");
-            Statement stmt = conn.createStatement();
-            stmt.executeUpdate("create schema if not exists minecraft;");
-            conn.setSchema("minecraft");
-
-            // create tables
-            String[] parts = CREATE_TABLES.split(";");
-            for( String part : parts ) {
-                if( ! part.trim().equals("")) {
-                    stmt.executeUpdate(part + ";");
-
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
-
-        DSLContext ret = DSL.using(conn, SQLDialect.H2);
-        return ret;
-    }
 
     private void start() throws IOException {
         // connect to architect server
@@ -343,6 +290,63 @@ public class Broker {
         Broker server = new Broker(config);
         server.start();
         server.blockUntilShutdown();
+    }
+
+
+
+
+    private DSLContext setupDatabase() {
+        if (config.getDatabase() != null) {
+            try {
+                conn = DriverManager.getConnection(config.getDatabase().getUrl(), config.getDatabase().getUsername(), config.getDatabase().getPassword());
+                DSLContext ret = DSL.using(conn, SQLDialect.valueOf(config.getDatabase().getSqlDialect()));
+                return ret;
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        System.err.println("Could not connect to database; setting up temporary in-memory database.");
+
+        try {
+            Class.forName("org.h2.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        try {
+            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE"; // ;INIT=create schema if not exists minecraft
+
+            // create db configuration (for display on website)
+            BrokerConfiguration.DatabaseAddress db = new BrokerConfiguration.DatabaseAddress();
+            db.setUrl(url);
+            db.setSqlDialect("H2");
+            db.setUsername("");
+            db.setPassword("");
+            config.setDatabase(db);
+
+            // create schema "minecraft" and activate it
+            conn = DriverManager.getConnection(url, "", "");
+            Statement stmt = conn.createStatement();
+            stmt.executeUpdate("create schema if not exists minecraft;");
+            conn.setSchema("minecraft");
+
+            // create tables
+            String[] parts = CREATE_TABLES.split(";");
+            for( String part : parts ) {
+                if( ! part.trim().equals("")) {
+                    stmt.executeUpdate(part + ";");
+
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        DSLContext ret = DSL.using(conn, SQLDialect.H2);
+        return ret;
     }
 
     private static final String CREATE_TABLES = "CREATE TABLE `game_logs` (\n" +
