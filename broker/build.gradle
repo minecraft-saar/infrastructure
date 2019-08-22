@@ -1,0 +1,13 @@
+plugins {
+    // Provide convenience executables for trying out the examples.
+    id 'application'
+}
+
+dependencies {
+  compile project(path: ':networking')
+}
+
+
+startScripts.enabled = false
+
+mainClassName = "de.saar.minecraft.matchmaker.Matchmaker"

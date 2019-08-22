@@ -11,10 +11,7 @@ buildscript {
 }
 
 plugins {
-    // Provide convenience executables for trying out the examples.
-    id 'application'
     // ASSUMES GRADLE 2.12 OR HIGHER. Use plugin version 0.7.5 with earlier gradle versions
-    id 'com.google.protobuf' version '0.8.8'
     // Generate IntelliJ IDEA's .idea & .iml project files
     id 'idea'
     id 'com.github.johnrengelman.shadow' version '5.0.0'
@@ -22,6 +19,8 @@ plugins {
     id "com.github.spotbugs" version "2.0.0"
 	id 'checkstyle'
 }
+
+allprojects {
 
 repositories {
     maven { // The google mirror is less flaky than mavenCentral()
@@ -34,78 +33,36 @@ scmVersion {
         prefix = ''
     }
 }
-
-version = scmVersion.version
-
-sourceCompatibility = 1.11
-
-spotbugs {
-	toolVersion = '4.0.0-beta3'
-	ignoreFailures = true
+	version = scmVersion.version
 }
-tasks.withType(com.github.spotbugs.SpotBugsTask) {
-	reports {
-		xml.enabled = false
-		text.enabled = true
-		html.enabled = false
+
+subprojects {
+	apply plugin: "java"
+	sourceCompatibility = 1.11
+
+	spotbugs {
+		toolVersion = '4.0.0-beta3'
+		ignoreFailures = true
+	}
+	tasks.withType(com.github.spotbugs.SpotBugsTask) {
+		reports {
+			xml.enabled = false
+			text.enabled = true
+			html.enabled = false
+		}
+	}
+
+	checkstyle {
+		toolVersion "8.19"
+		// use one common config file for all subprojects
+		configFile = project(':').file('config/checkstyle/checkstyle.xml')
+		configProperties = [ "suppressionFile" : project(':').file('config/checkstyle/suppressions.xml')]
+	}
+
+
+	dependencies {
+		compileOnly "javax.annotation:javax.annotation-api:1.2"
+		testImplementation "junit:junit:4.12"
+		testImplementation "org.mockito:mockito-core:2.25.1"
 	}
 }
-
-checkstyle {
-	toolVersion "8.19"
-	// use one common config file for all subprojects
-	configFile = project(':').file('config/checkstyle/checkstyle.xml')
-	configProperties = [ "suppressionFile" : project(':').file('config/checkstyle/suppressions.xml')]
-}
-
-
-// Feel free to delete the comment at the next line. It is just for safely
-// updating the version in our release process.
-def grpcVersion = '1.23.0' // CURRENT_GRPC_VERSION
-def protobufVersion = '3.9.0'
-def protocVersion = protobufVersion
-
-dependencies {
-    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
-    implementation "io.grpc:grpc-stub:${grpcVersion}"
-    compileOnly "javax.annotation:javax.annotation-api:1.2"
-    
-    runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
-
-    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
-    testImplementation "junit:junit:4.12"
-    testImplementation "org.mockito:mockito-core:2.25.1"
-}
-
-
-
-protobuf {
-    protoc { artifact = "com.google.protobuf:protoc:${protocVersion}" }
-    plugins {
-        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
-    }
-    generateProtoTasks {
-        all()*.plugins { grpc {} }
-    }
-}
-
-// Inform IDEs like IntelliJ IDEA, Eclipse or NetBeans about the generated code.
-sourceSets {
-    main {
-        java {
-            srcDirs 'build/generated/source/proto/main/grpc'
-            srcDirs 'build/generated/source/proto/main/java'
-        }
-    }
-}
-
-idea {
-    module {
-        sourceDirs += file("${projectDir}/build/generated/source/proto/main/grpc");
-        sourceDirs += file("${projectDir}/build/generated/source/proto/main/java");
-    }
-}
-
-startScripts.enabled = false
-
-mainClassName = "de.saar.minecraft.matchmaker.Matchmaker"
