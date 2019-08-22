@@ -1,4 +1,11 @@
+plugins {
+    // Provide convenience executables for trying out the examples.
+    id 'application'
+}
+
+
 dependencies {
   compile project(path: ':networking')
 }
 
+mainClassName = "de.saar.minecraft.architect.ArchitectServer"

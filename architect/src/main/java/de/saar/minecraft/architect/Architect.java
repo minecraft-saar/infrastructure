@@ -5,5 +5,6 @@ import de.saar.minecraft.shared.TextMessage;
 import io.grpc.stub.StreamObserver;
 
 public interface Architect {
-  void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver);
+    public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver);
+    public String getArchitectInformation();
 }

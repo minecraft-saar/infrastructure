@@ -1,13 +1,101 @@
 plugins {
     // Provide convenience executables for trying out the examples.
     id 'application'
+    id 'nu.studer.jooq' version '3.0.3'
 }
 
 dependencies {
   compile project(path: ':networking')
+
+    // database stuff
+    implementation "org.jooq:jooq:3.11.12"
+    implementation "org.jooq:jooq-meta:3.11.12"
+    implementation "org.jooq:jooq-codegen:3.11.12"
+    implementation "mysql:mysql-connector-java:5.1.6"
+
+    jooqRuntime "mysql:mysql-connector-java:5.1.6"
+
+    // YAML
+    implementation "org.yaml:snakeyaml:1.25"
+
 }
 
 
 startScripts.enabled = false
 
 mainClassName = "de.saar.minecraft.matchmaker.Matchmaker"
+
+
+
+// Inform IDEs like IntelliJ IDEA, Eclipse or NetBeans about the generated code.
+sourceSets {
+    main {
+        java {
+            srcDirs 'src/generated/jooq/java'
+            }
+    }
+}
+
+idea {
+    module {
+        sourceDirs += file("${projectDir}/src/generated/jooq/java");
+    }
+}
+
+
+
+// JOOQ code generation
+// rebuild src/generated/jooq/** with "gradle --rerun-tasks generateMinecraftJooqSchemaSource"
+
+jooq {
+  version = '3.11.12'
+  edition = 'OSS'
+  
+  minecraft(sourceSets.main) {
+    jdbc {
+      driver = 'com.mysql.jdbc.Driver'
+      url = 'jdbc:mysql://localhost:3306/minecraft'
+      user = 'root'
+      
+      properties {
+        property {
+          key = 'ssl'
+          value = 'true'
+        }
+      }
+    }
+    
+    generator {
+      name = 'org.jooq.codegen.DefaultGenerator'
+      strategy {
+        name = 'org.jooq.codegen.DefaultGeneratorStrategy'
+      }
+      
+      database {
+        name = 'org.jooq.meta.mysql.MySQLDatabase'
+        inputSchema = 'minecraft'
+	
+        forcedTypes {
+          forcedType {
+            name = 'varchar'
+            expression = '.*'
+            types = 'JSONB?'
+          }
+          forcedType {
+            name = 'varchar'
+            expression = '.*'
+            types = 'INET'
+          }
+        }
+      }
+      
+      target {
+        packageName = 'de.saar.minecraft.matchmaker.db'
+	directory = 'src/generated/jooq/java'
+      }
+    }
+  }
+}
+
+
+

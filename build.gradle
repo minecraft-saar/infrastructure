@@ -17,27 +17,29 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '5.0.0'
     id 'pl.allegro.tech.build.axion-release' version '1.10.1'
     id "com.github.spotbugs" version "2.0.0"
-	id 'checkstyle'
 }
 
 allprojects {
 
-repositories {
-    maven { // The google mirror is less flaky than mavenCentral()
+  repositories {
+      maven { // The google mirror is less flaky than mavenCentral()
         url "https://maven-central.storage-download.googleapis.com/repos/central/data/" }
-    mavenLocal()
-}
+      mavenLocal()
+  }
 
-scmVersion {
+  scmVersion {
     tag {
         prefix = ''
     }
-}
-	version = scmVersion.version
+  }
+  
+  version = scmVersion.version
 }
 
 subprojects {
 	apply plugin: "java"
+        apply plugin: 'com.github.johnrengelman.shadow'
+	
 	sourceCompatibility = 1.11
 
 	spotbugs {
@@ -52,17 +54,9 @@ subprojects {
 		}
 	}
 
-	checkstyle {
-		toolVersion "8.19"
-		// use one common config file for all subprojects
-		configFile = project(':').file('config/checkstyle/checkstyle.xml')
-		configProperties = [ "suppressionFile" : project(':').file('config/checkstyle/suppressions.xml')]
-	}
-
-
-	dependencies {
-		compileOnly "javax.annotation:javax.annotation-api:1.2"
-		testImplementation "junit:junit:4.12"
-		testImplementation "org.mockito:mockito-core:2.25.1"
-	}
+  dependencies {
+    compileOnly "javax.annotation:javax.annotation-api:1.2"
+    testImplementation "junit:junit:4.12"
+    testImplementation "org.mockito:mockito-core:2.25.1"
+  }
 }

@@ -11,14 +11,12 @@ import "shared.proto";
 
 service Matchmaker {
     rpc StartGame (GameData) returns (GameId) {}
+    rpc EndGame (GameId) returns (Void) {}
     rpc HandleStatusInformation (StatusMessage) returns (stream TextMessage) {}
 }
 
 
 message GameData {
-    string gameData = 1;
-}
-
-message GameId {
-    int32 id = 1;
+    string clientAddress = 1;
+    string playerName = 2;
 }
