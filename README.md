@@ -5,27 +5,34 @@ Infrastructure for connecting a Minecraft server to the NLG system.
 ### Compilation
 
 ```
-gradle shadowJar
+./gradlew build
 ```
 
 
 ### Start the Architect Server
 
 ```
-java -cp build/libs/minecraft-all.jar de.saar.minecraft.architect.ArchitectServer
+./gradlew architect:run
 ```
+
+(the shadow Jar is in architect/build/libs/architect-0.1.0-SNAPSHOT-all.jar)
+
 
 ### Start the Matchmaker
 
+Make a copy of `example-matchmaker-config.yaml` within the `broker` subdirectory, named `matchmaker-config.yaml`, and edit it as needed. Then start the matchmaker as follows:
+
 ```
-java -jar build/libs/minecraft-all.jar 
+./gradlew broker:run
 ```
 
+(the shadow Jar is in broker/build/libs/broker-0.1.0-SNAPSHOT-all.jar)
 
 ### Start the dummy client
 
 ```
-java -cp build/libs/minecraft-all.jar de.saar.minecrt.matchmaker.MatchmakerTestClient
+cd broker
+java -cp build/libs/broker-0.1.0-SNAPSHOT-all.jar de.saar.minecraft.matchmaker.MatchmakerTestClient
 ```
 
 Send messages as explained in the Javadoc of MatchmakerTestClient.
