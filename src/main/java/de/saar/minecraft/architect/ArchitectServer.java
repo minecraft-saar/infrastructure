@@ -17,7 +17,7 @@ import java.util.Map;
 
 public class ArchitectServer {
     private Server server;
-    private Map<Integer,Architect> runningArchitects;
+    private Map<Integer, Architect> runningArchitects;
 
     public ArchitectServer() {
         runningArchitects = new HashMap<>();
@@ -25,6 +25,7 @@ public class ArchitectServer {
 
     private void start() throws IOException {
         int port = 10000;
+
         server = ServerBuilder.forPort(port)
                 .addService(new ArchitectImpl())
                 .build()
@@ -43,7 +44,7 @@ public class ArchitectServer {
     }
 
     private void stop() {
-        if( server != null ) {
+        if (server != null) {
             server.shutdown();
         }
     }
@@ -93,7 +94,7 @@ public class ArchitectServer {
         public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
             Architect arch = runningArchitects.get(request.getGameId());
 
-            if( arch == null ) {
+            if (arch == null) {
                 Status status = Status.newBuilder()
                         .setCode(Code.INVALID_ARGUMENT.getNumber())
                         .setMessage("No architect running for game ID " + request.getGameId())
@@ -106,6 +107,9 @@ public class ArchitectServer {
     }
 
 
+    /**
+     * Starts an architect server.
+     */
     public static void main(String[] args) throws IOException, InterruptedException {
         ArchitectServer server = new ArchitectServer();
         server.start();

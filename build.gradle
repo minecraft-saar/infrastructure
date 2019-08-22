@@ -1,9 +1,14 @@
-/*
-java -cp
-/Users/koller/.gradle/caches/modules-2/files-2.1/org.jooq/jooq/3.11.12/8e12ddb741821cddbe2589fcbd765c1e2d439ffa/jooq-3.11.12.jar:/Users/koller/.gradle/caches/modules-2/files-2.1/org.jooq/jooq-codegen/3.11.12/fb01333a1797795dcee9b5902f1e48890e711141/jooq-codegen-3.11.12.jar:/Users/koller/.gradle/caches/modules-2/files-2.1/org.jooq/jooq-meta/3.11.12/e6ad8a4b5bb02abb6a9627f483a50681337d682/jooq-meta-3.11.12.jar:/Users/koller/.gradle/caches/modules-2/files-2.1/mysql/mysql-connector-java/5.1.37/2c378637f6faff77541244e8257b446f04324bd8/mysql-connector-java-5.1.37.jar:. org.jooq.codegen.GenerationTool
-database.xml
-*/
-
+// add guava 27 to the classpath of the *build script*
+// see https://github.com/spotbugs/spotbugs-gradle-plugin/issues/120
+// solution taken from https://github.com/GoogleContainerTools/jib/issues/591
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.google.guava:guava:27.0.1-jre")
+    }
+}
 
 plugins {
     // Provide convenience executables for trying out the examples.
@@ -14,6 +19,9 @@ plugins {
     id 'idea'
     id 'com.github.johnrengelman.shadow' version '5.0.0'
     id 'nu.studer.jooq' version '3.0.3'
+    id 'pl.allegro.tech.build.axion-release' version '1.10.1'
+    id "com.github.spotbugs" version "2.0.0"
+//    id 'checkstyle'
 }
 
 repositories {
@@ -21,6 +29,39 @@ repositories {
         url "https://maven-central.storage-download.googleapis.com/repos/central/data/" }
     mavenLocal()
 }
+
+scmVersion {
+    tag {
+        prefix = ''
+    }
+}
+
+version = scmVersion.version
+
+sourceCompatibility = 1.11
+
+spotbugs {
+	toolVersion = '4.0.0-beta3'
+	ignoreFailures = true
+}
+tasks.withType(com.github.spotbugs.SpotBugsTask) {
+	reports {
+		xml.enabled = false
+		text.enabled = true
+		html.enabled = false
+	}
+}
+
+
+/*
+checkstyle {
+	toolVersion "8.19"
+	// use one common config file for all subprojects
+	configFile = project(':').file('config/checkstyle/checkstyle.xml')
+	configProperties = [ "suppressionFile" : project(':').file('config/checkstyle/suppressions.xml')]
+}
+*/
+
 
 // Feel free to delete the comment at the next line. It is just for safely
 // updating the version in our release process.

@@ -53,7 +53,7 @@ public class Matchmaker {
     }
 
     private DSLContext setupDatabase() {
-        if( config.getDatabase() != null ) {
+        if (config.getDatabase() != null) {
             try {
                 conn = DriverManager.getConnection(config.getDatabase().getUrl(), config.getDatabase().getUsername(), config.getDatabase().getPassword());
                 DSLContext ret = DSL.using(conn, SQLDialect.valueOf(config.getDatabase().getSqlDialect()));
@@ -102,7 +102,7 @@ public class Matchmaker {
     }
 
     private void stop() {
-        if( server != null ) {
+        if (server != null) {
             server.shutdown();
         }
     }
@@ -115,6 +115,7 @@ public class Matchmaker {
             server.awaitTermination();
         }
     }
+
 
     private class MatchmakerImpl extends MatchmakerGrpc.MatchmakerImplBase {
         /**
@@ -173,6 +174,7 @@ public class Matchmaker {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             nonblockingArchitectStub.handleStatusInformation(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
         }
+
     }
 
     private void setGameStatus(int gameid, GamesStatus status) {
@@ -192,7 +194,6 @@ public class Matchmaker {
     }
 
     private static class DummyStreamObserver<E> implements StreamObserver<E> {
-
         @Override
         public void onNext(E value) {
 
