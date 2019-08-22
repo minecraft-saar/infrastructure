@@ -1,5 +1,6 @@
 package de.saar.minecraft.broker;
 
+import com.google.common.base.Stopwatch;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
@@ -142,6 +143,8 @@ public class Broker {
          */
         @Override
         public void startGame(GameData request, StreamObserver<GameId> responseObserver) {
+            Stopwatch sw = Stopwatch.createStarted();
+
             GamesRecord rec = jooq.newRecord(Tables.GAMES);
             rec.setClientIp(request.getClientAddress());
             rec.setPlayerName(request.getPlayerName());
@@ -151,21 +154,31 @@ public class Broker {
             int id = rec.getId();
             setGameStatus(id, GamesStatus.created);
 
+//            System.err.printf("db insert: %s\n", sw);
+
             // tell architect about the new game
             GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).build();
             ArchitectInformation info = blockingArchitectStub.startGame(mGameDataWithId);
+
+//            System.err.printf("architect instantiated: %s\n", sw);
 
             rec.setArchitectHostname(config.getArchitectServer().getHostname());
             rec.setArchitectPort(config.getArchitectServer().getPort());
             rec.setArchitectInfo(info.getInfo());
             rec.store();
 
+//            System.err.printf("db updated: %s\n", sw);
+
             // tell client the game ID
             GameId idMessage = GameId.newBuilder().setId(id).build();
             responseObserver.onNext(idMessage);
             responseObserver.onCompleted();
 
+//            System.err.printf("client called back: %s\n", sw);
+
             setGameStatus(id, GamesStatus.running);
+
+//            System.err.printf("done: %s\n", sw);
         }
 
         @Override
@@ -197,9 +210,7 @@ public class Broker {
 
     private void setGameStatus(int gameid, GamesStatus status) {
         // update status in games table
-        GamesRecord rec = jooq.fetchOne(Tables.GAMES, Tables.GAMES.ID.eq(gameid));
-        rec.setStatus(status);
-        rec.store();
+        jooq.update(Tables.GAMES).set(Tables.GAMES.STATUS, status).where(Tables.GAMES.ID.equal(gameid));
 
         // record updating of status in game_logs table
         GameLogsRecord glr = jooq.newRecord(Tables.GAME_LOGS);

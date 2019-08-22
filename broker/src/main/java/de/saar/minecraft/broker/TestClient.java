@@ -61,8 +61,7 @@ public class TestClient {
     } catch (UnknownHostException e) {
     }
 
-    GameData mGameInfo = GameData.newBuilder().setClientAddress(hostname).setPlayerName(playerName)
-        .build();
+    GameData mGameInfo = GameData.newBuilder().setClientAddress(hostname).setPlayerName(playerName).build();
 
     GameId mGameId;
     try {
@@ -72,7 +71,8 @@ public class TestClient {
       return -1;
     }
 
-    return mGameId.getId();
+    int ret = mGameId.getId();
+    return ret;
   }
 
 
@@ -86,25 +86,30 @@ public class TestClient {
    * the matchmaker sends back.
    */
   public void sendStatusMessage(int gameId, int x, int y, int z) {
-    StatusMessage mStatus = StatusMessage.newBuilder().setGameId(gameId).setX(x).setY(y).setZ(z)
-        .build();
+    StatusMessage mStatus = StatusMessage.newBuilder().setGameId(gameId).setX(x).setY(y).setZ(z).build();
+    nonblockingStub.handleStatusInformation(mStatus, new TextStreamObserver(gameId));
+  }
 
-    nonblockingStub.handleStatusInformation(mStatus, new StreamObserver<TextMessage>() {
-      @Override
-      public void onNext(TextMessage value) {
-        System.err.printf("got text message for gameid %d: %s\n", gameId, value);
-      }
+  private static class TextStreamObserver implements StreamObserver<TextMessage> {
+    private int gameId;
 
-      @Override
-      public void onError(Throwable t) {
-        System.err.println("ERROR: " + t.toString());
-      }
+    public TextStreamObserver(int gameId) {
+      this.gameId = gameId;
+    }
 
-      @Override
-      public void onCompleted() {
-      }
-    });
+    @Override
+    public void onNext(TextMessage value) {
+      System.err.printf("got text message for gameid %d: %s\n", gameId, value);
+    }
 
+    @Override
+    public void onError(Throwable t) {
+      System.err.println("ERROR: " + t.toString());
+    }
+
+    @Override
+    public void onCompleted() {
+    }
   }
 
   public static void main(String[] args) throws InterruptedException {
