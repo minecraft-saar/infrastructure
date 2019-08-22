@@ -20,16 +20,14 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
+import org.h2.engine.Database;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 
 import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.sql.*;
 
 public class Broker {
     private static final String MESSAGE_TYPE_ERROR = "ERROR";
@@ -89,16 +87,34 @@ public class Broker {
         }
 
         try {
-            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1";
-            config.getDatabase().setUrl(url);
-            config.getDatabase().setSqlDialect("H2");
+            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE"; // ;INIT=create schema if not exists minecraft
+
+            // create db configuration (for display on website)
+            BrokerConfiguration.DatabaseAddress db = new BrokerConfiguration.DatabaseAddress();
+            db.setUrl(url);
+            db.setSqlDialect("H2");
+            db.setUsername("");
+            db.setPassword("");
+            config.setDatabase(db);
+
+            // create schema "minecraft" and activate it
             conn = DriverManager.getConnection(url, "", "");
+            Statement stmt = conn.createStatement();
+            stmt.executeUpdate("create schema if not exists minecraft;");
+            conn.setSchema("minecraft");
+
+            // create tables
+            String[] parts = CREATE_TABLES.split(";");
+            for( String part : parts ) {
+                if( ! part.trim().equals("")) {
+                    stmt.executeUpdate(part + ";");
+
+                }
+            }
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(1);
         }
-
-        // TODO create tables
 
         DSLContext ret = DSL.using(conn, SQLDialect.H2);
         return ret;
@@ -328,4 +344,26 @@ public class Broker {
         server.start();
         server.blockUntilShutdown();
     }
+
+    private static final String CREATE_TABLES = "CREATE TABLE `game_logs` (\n" +
+            "  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,\n" +
+            "  `gameid` int(11) DEFAULT NULL,\n" +
+            "  `direction` enum('FromClient','ToClient','FromArchitect','ToArchitect','PassToClient','PassToArchitect','None') DEFAULT NULL,\n" +
+            "  `message_type` varchar(100) DEFAULT NULL,\n" +
+            "  `message` varchar(500) DEFAULT NULL,\n" +
+            "  `timestamp` timestamp NULL DEFAULT NULL,\n" +
+            "  PRIMARY KEY (`id`)\n" +
+            ")  ;\n" +
+            "\n" +
+            "CREATE TABLE `games` (\n" +
+            "  `id` int(11) NOT NULL AUTO_INCREMENT,\n" +
+            "  `client_ip` varchar(200) DEFAULT NULL,\n" +
+            "  `player_name` varchar(200) DEFAULT NULL,\n" +
+            "  `start_time` timestamp NULL DEFAULT NULL,\n" +
+            "  `status` enum('created','running','finished') DEFAULT NULL,\n" +
+            "  `architect_hostname` varchar(100) DEFAULT NULL,\n" +
+            "  `architect_port` int(11) DEFAULT NULL,\n" +
+            "  `architect_info` varchar(500) DEFAULT NULL,\n" +
+            "  PRIMARY KEY (`id`)\n" +
+            ")  ;";
 }
