@@ -47,11 +47,16 @@ public class Broker {
         this.config = config;
         jooq = setupDatabase();
 
-        try {
-            new HttpServer().start(this);
-        } catch (IOException e) {
-            System.err.println("Could not open HTTP server, will run without it.");
-            e.printStackTrace();
+        // start web server
+        if (config.getHttpPort() == 0) {
+            System.err.println("No HTTP port specified, will run without HTTP server.");
+        } else {
+            try {
+                new HttpServer().start(this);
+            } catch (IOException e) {
+                System.err.println("Could not open HTTP server, will run without it.");
+                e.printStackTrace();
+            }
         }
     }
 
@@ -64,7 +69,7 @@ public class Broker {
     }
 
 
-    private void start() throws IOException {
+    public void start() throws IOException {
         // connect to architect server
         channelToArchitect = ManagedChannelBuilder.forAddress(config.getArchitectServer().getHostname(), config.getArchitectServer().getPort())
                 // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
@@ -78,7 +83,7 @@ public class Broker {
         // check connection to Architect server and get architectInfo string
         try {
             architectInfo = blockingArchitectStub.hello(Void.newBuilder().build());
-        } catch(StatusRuntimeException e) {
+        } catch (StatusRuntimeException e) {
             System.err.printf("\nERROR: Failed to connect to architect server at %s:\n",
                     config.getArchitectServer());
             System.err.println(e.getCause().getMessage());
@@ -95,16 +100,16 @@ public class Broker {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-                System.err.println("*** shutting down gRPC server since JVM is shutting down");
+//                System.err.println("*** shutting down gRPC server since JVM is shutting down");
                 Broker.this.stop();
-                System.err.println("*** server shut down");
+//                System.err.println("*** server shut down");
             }
         });
 
         System.err.println("Broker service running.");
     }
 
-    private void stop() {
+    public void stop() {
         if (server != null) {
             server.shutdown();
         }
@@ -113,7 +118,7 @@ public class Broker {
     /**
      * Await termination on the main thread since the grpc library uses daemon threads.
      */
-    private void blockUntilShutdown() throws InterruptedException {
+    public void blockUntilShutdown() throws InterruptedException {
         if (server != null) {
             server.awaitTermination();
         }
@@ -297,8 +302,6 @@ public class Broker {
     }
 
 
-
-
     private DSLContext setupDatabase() {
         if (config.getDatabase() != null) {
             try {
@@ -347,7 +350,7 @@ public class Broker {
         return ret;
     }
 
-    private static final String CREATE_TABLES = "CREATE TABLE `game_logs` (\n" +
+    private static final String CREATE_TABLES = "CREATE TABLE if not exists `game_logs` (\n" +
             "  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,\n" +
             "  `gameid` int(11) DEFAULT NULL,\n" +
             "  `direction` enum('FromClient','ToClient','FromArchitect','ToArchitect','PassToClient','PassToArchitect','None') DEFAULT NULL,\n" +
@@ -357,7 +360,7 @@ public class Broker {
             "  PRIMARY KEY (`id`)\n" +
             ")  ;\n" +
             "\n" +
-            "CREATE TABLE `games` (\n" +
+            "CREATE TABLE if not exists `games` (\n" +
             "  `id` int(11) NOT NULL AUTO_INCREMENT,\n" +
             "  `client_ip` varchar(200) DEFAULT NULL,\n" +
             "  `player_name` varchar(200) DEFAULT NULL,\n" +

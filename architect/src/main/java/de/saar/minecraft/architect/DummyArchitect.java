@@ -5,10 +5,19 @@ import de.saar.minecraft.shared.TextMessage;
 import io.grpc.stub.StreamObserver;
 
 public class DummyArchitect implements Architect {
+    private int waitTime;
+
+    public DummyArchitect(int waitTime) {
+        this.waitTime = waitTime;
+    }
+
+    public DummyArchitect() {
+        this(1000);
+    }
 
     @Override
     public void initialize() {
-        
+
     }
 
     @Override
@@ -25,7 +34,7 @@ public class DummyArchitect implements Architect {
 
                 // delay for a bit
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(waitTime);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

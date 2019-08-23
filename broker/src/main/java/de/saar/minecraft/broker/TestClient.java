@@ -86,8 +86,12 @@ public class TestClient {
    * the matchmaker sends back.
    */
   public void sendStatusMessage(int gameId, int x, int y, int z) {
+    sendStatusMessage(gameId, x, y, z, new TextStreamObserver(gameId));
+  }
+
+  public void sendStatusMessage(int gameId, int x, int y, int z, StreamObserver<TextMessage> observer) {
     StatusMessage mStatus = StatusMessage.newBuilder().setGameId(gameId).setX(x).setY(y).setZ(z).build();
-    nonblockingStub.handleStatusInformation(mStatus, new TextStreamObserver(gameId));
+    nonblockingStub.handleStatusInformation(mStatus, observer);
   }
 
   private static class TextStreamObserver implements StreamObserver<TextMessage> {

@@ -35,7 +35,7 @@ public class ArchitectServer {
         runningArchitects = new HashMap<>();
     }
 
-    private void start() throws IOException {
+    public void start() throws IOException {
         server = ServerBuilder.forPort(port)
                 .addService(new ArchitectImpl())
                 .build()
@@ -44,9 +44,9 @@ public class ArchitectServer {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-                System.err.println("*** shutting down gRPC server since JVM is shutting down");
+//                System.err.println("*** shutting down gRPC server since JVM is shutting down");
                 ArchitectServer.this.stop();
-                System.err.println("*** server shut down");
+//                System.err.println("*** server shut down");
             }
         });
 
@@ -56,7 +56,7 @@ public class ArchitectServer {
         System.err.println(info);
     }
 
-    private void stop() {
+    public void stop() {
         if (server != null) {
             server.shutdown();
         }
@@ -65,7 +65,7 @@ public class ArchitectServer {
     /**
      * Await termination on the main thread since the grpc library uses daemon threads.
      */
-    private void blockUntilShutdown() throws InterruptedException {
+    public void blockUntilShutdown() throws InterruptedException {
         if (server != null) {
             server.awaitTermination();
         }
