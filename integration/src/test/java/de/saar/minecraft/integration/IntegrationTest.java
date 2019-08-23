@@ -22,19 +22,22 @@ public class IntegrationTest {
     private Broker broker;
     private TestClient client;
 
+    private static final int ARCHITECT_PORT = 20001;
+    private static final int BROKER_PORT = 20002;
+
     @Before
     public void setup() throws IOException {
-        architectServer = new ArchitectServer(10000, () -> new DummyArchitect(0));
+        architectServer = new ArchitectServer(ARCHITECT_PORT, () -> new DummyArchitect(0));
         architectServer.start();
 
         BrokerConfiguration config = new BrokerConfiguration();
-        config.setPort(2802);
-        config.setArchitectServer(new BrokerConfiguration.ArchitectServerAddress("localhost", 10000));
+        config.setPort(BROKER_PORT);
+        config.setArchitectServer(new BrokerConfiguration.ArchitectServerAddress("localhost", ARCHITECT_PORT));
 
         broker = new Broker(config);
         broker.start();
 
-        client = new TestClient("localhost", 2802);
+        client = new TestClient("localhost", BROKER_PORT);
     }
 
     @After
