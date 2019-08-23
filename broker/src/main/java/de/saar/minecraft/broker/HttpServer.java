@@ -82,7 +82,6 @@ public class HttpServer {
         public void handle(HttpExchange t) throws IOException {
             String response = null;
             String path = t.getRequestURI().getPath();
-            System.err.println("HTTP request: " + path);
 
             if( "/".equals(path)) {
                 Map<String, Object> bindings = new TreeMap<>();

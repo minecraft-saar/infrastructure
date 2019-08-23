@@ -316,7 +316,7 @@ public class Broker {
         }
 
         try {
-            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE"; // ;INIT=create schema if not exists minecraft
+            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE";
 
             // create db configuration (for display on website)
             BrokerConfiguration.DatabaseAddress db = new BrokerConfiguration.DatabaseAddress();
@@ -333,13 +333,7 @@ public class Broker {
             conn.setSchema("minecraft");
 
             // create tables
-            String[] parts = CREATE_TABLES.split(";");
-            for( String part : parts ) {
-                if( ! part.trim().equals("")) {
-                    stmt.executeUpdate(part + ";");
-
-                }
-            }
+            stmt.executeUpdate(CREATE_TABLES);
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(1);
