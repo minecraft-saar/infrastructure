@@ -3,9 +3,13 @@ plugins {
     id 'application'
 }
 
-
 dependencies {
-  compile project(path: ':networking')
+    compile project(path: ':networking')
 }
 
 mainClassName = "de.saar.minecraft.architect.ArchitectServer"
+
+// Local Variables:
+// groovy-indent-offset: 4
+// indent-tabs-mode: nil
+// End:
