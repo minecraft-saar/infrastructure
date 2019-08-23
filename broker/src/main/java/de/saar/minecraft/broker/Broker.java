@@ -15,12 +15,8 @@ import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.Void;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
+import io.grpc.*;
 import io.grpc.stub.StreamObserver;
-import org.h2.engine.Database;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
@@ -39,6 +35,7 @@ public class Broker {
     private ArchitectGrpc.ArchitectStub nonblockingArchitectStub;
     private ArchitectGrpc.ArchitectBlockingStub blockingArchitectStub;
     private ManagedChannel channelToArchitect;
+    private ArchitectInformation architectInfo;
 
     private final BrokerConfiguration config;
     private DSLContext jooq = null;
@@ -76,10 +73,17 @@ public class Broker {
                 .build();
         nonblockingArchitectStub = ArchitectGrpc.newStub(channelToArchitect);
         blockingArchitectStub = ArchitectGrpc.newBlockingStub(channelToArchitect);
-        System.err.println("Connected to architect server.");
+        System.err.printf("Connected to architect server at %s.\n", config.getArchitectServer());
 
-        // TODO fail correctly if Architect server is not running
-
+        // check connection to Architect server and get architectInfo string
+        try {
+            architectInfo = blockingArchitectStub.hello(Void.newBuilder().build());
+        } catch(StatusRuntimeException e) {
+            System.err.printf("\nERROR: Failed to connect to architect server at %s:\n",
+                    config.getArchitectServer());
+            System.err.println(e.getCause().getMessage());
+            System.exit(1);
+        }
 
         // open Broker service
         int port = config.getPort();
@@ -141,13 +145,13 @@ public class Broker {
 
             // tell architect about the new game
             GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).build();
-            ArchitectInformation info = blockingArchitectStub.startGame(mGameDataWithId);
+            Void x = blockingArchitectStub.startGame(mGameDataWithId);
 
 //            System.err.printf("architect instantiated: %s\n", sw);
 
             rec.setArchitectHostname(config.getArchitectServer().getHostname());
             rec.setArchitectPort(config.getArchitectServer().getPort());
-            rec.setArchitectInfo(info.getInfo());
+            rec.setArchitectInfo(architectInfo.getInfo());
             rec.store();
 
 //            System.err.printf("db updated: %s\n", sw);

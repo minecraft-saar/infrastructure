@@ -60,21 +60,46 @@ public class ArchitectServer {
 
     private class ArchitectImpl extends ArchitectGrpc.ArchitectImplBase {
         /**
+         * This method is called once when the Broker connects to the Architect server
+         * for the first time. This is to make sure the Architect server is
+         * actually available. The method returns an information string about
+         * the type of architect (including perhaps its version) that is served
+         * by this ArchitectServer.
+         *
+         * @param request
+         * @param responseObserver
+         */
+        @Override
+        public void hello(Void request, StreamObserver<ArchitectInformation> responseObserver) {
+            Architect arch = new DummyArchitect();
+            responseObserver.onNext(ArchitectInformation.newBuilder().setInfo(arch.getArchitectInformation()).build());
+            responseObserver.onCompleted();
+        }
+
+        /**
          * Creates a new architect instance for the new game.
          *
          * @param request
          * @param responseObserver
          */
         @Override
-        public void startGame(GameDataWithId request, StreamObserver<ArchitectInformation> responseObserver) {
+        public void startGame(GameDataWithId request, StreamObserver<Void> responseObserver) {
             Architect arch = new DummyArchitect();
             runningArchitects.put(request.getId(), arch);
-            responseObserver.onNext(ArchitectInformation.newBuilder().setInfo(arch.getArchitectInformation()).build());
+
+            responseObserver.onNext(Void.newBuilder().build());
             responseObserver.onCompleted();
 
             System.err.printf("architect for id %d: %s\n", request.getId(), arch);
         }
 
+        /**
+         * Marks the given game as finished and shuts down its corresponding
+         * architect instance.
+         *
+         * @param request
+         * @param responseObserver
+         */
         @Override
         public void endGame(GameId request, StreamObserver<Void> responseObserver) {
             runningArchitects.remove(request.getId());
