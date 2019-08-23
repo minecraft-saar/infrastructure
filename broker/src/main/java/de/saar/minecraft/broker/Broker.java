@@ -7,8 +7,6 @@ import de.saar.minecraft.architect.ArchitectGrpc;
 import de.saar.minecraft.architect.ArchitectInformation;
 import de.saar.minecraft.architect.GameDataWithId;
 import de.saar.minecraft.broker.db.Tables;
-import de.saar.minecraft.broker.db.enums.GameLogsDirection;
-import de.saar.minecraft.broker.db.enums.GamesStatus;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.shared.GameId;
@@ -139,7 +137,7 @@ public class Broker {
             rec.store();
 
             int id = rec.getId();
-            setGameStatus(id, GamesStatus.created);
+            setGameStatus(id, GameStatus.Created);
 
 //            System.err.printf("db insert: %s\n", sw);
 
@@ -163,7 +161,7 @@ public class Broker {
 
 //            System.err.printf("client called back: %s\n", sw);
 
-            setGameStatus(id, GamesStatus.running);
+            setGameStatus(id, GameStatus.Running);
 
 //            System.err.printf("done: %s\n", sw);
         }
@@ -176,7 +174,7 @@ public class Broker {
             responseObserver.onNext(v);
             responseObserver.onCompleted();
 
-            setGameStatus(request.getId(), GamesStatus.finished);
+            setGameStatus(request.getId(), GameStatus.Finished);
         }
 
         /**
@@ -195,7 +193,7 @@ public class Broker {
 
     }
 
-    private void setGameStatus(int gameid, GamesStatus status) {
+    private void setGameStatus(int gameid, GameStatus status) {
         // update status in games table
         jooq.update(Tables.GAMES).set(Tables.GAMES.STATUS, status).where(Tables.GAMES.ID.equal(gameid)).execute();
 

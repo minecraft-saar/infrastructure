@@ -5,23 +5,23 @@ plugins {
 }
 
 dependencies {
-  compile project(path: ':networking')
+    compile project(path: ':networking')
 
     // database stuff
     implementation "org.jooq:jooq:3.11.12"
     implementation "org.jooq:jooq-meta:3.11.12"
+    jooqRuntime "org.jooq:jooq-meta-extensions:3.11.12"
     implementation "org.jooq:jooq-codegen:3.11.12"
     implementation "mysql:mysql-connector-java:5.1.6"
-
+    
     jooqRuntime "mysql:mysql-connector-java:5.1.6"
-
+    
     implementation 'org.apache.commons:commons-collections4:4.4'
     implementation 'com.h2database:h2:1.4.199'
-
-
+    
     // YAML
     implementation "org.yaml:snakeyaml:1.25"
-
+    
     // web
     implementation 'au.com.codeka:carrot:2.4.2'
 }
@@ -32,76 +32,59 @@ startScripts.enabled = false
 mainClassName = "de.saar.minecraft.broker.Broker"
 
 
-
-// Inform IDEs like IntelliJ IDEA, Eclipse or NetBeans about the generated code.
-sourceSets {
-    main {
-        java {
-            srcDirs 'src/generated/jooq/java'
-            }
-    }
-}
-
-idea {
-    module {
-        sourceDirs += file("${projectDir}/src/generated/jooq/java");
-    }
-}
-
-
-
-// JOOQ code generation
-// rebuild src/generated/jooq/** with "gradle --rerun-tasks generateMinecraftJooqSchemaSource"
-
 jooq {
-  version = '3.11.12'
-  edition = 'OSS'
+    version = '3.11.12'
+    edition = 'OSS'
   
-  minecraft(sourceSets.main) {
-    jdbc {
-      driver = 'com.mysql.jdbc.Driver'
-      url = 'jdbc:mysql://localhost:3306/minecraft'
-      user = 'root'
-      
-      properties {
-        property {
-          key = 'ssl'
-          value = 'true'
+    minecraft(sourceSets.main) {
+        generator {
+            name = 'org.jooq.codegen.DefaultGenerator'
+            strategy {
+                name = 'org.jooq.codegen.DefaultGeneratorStrategy'
+            }
+            database {
+                name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
+                properties {
+                    property {
+                        key = 'scripts'
+                        value = 'src/main/resources/database.sql'
+                    }
+                    property {
+                        key = 'sort'
+                        value = 'semantic'
+                    }
+                }
+                forcedTypes {
+                    forcedType {
+                        userType = 'de.saar.minecraft.broker.GameStatus'
+                        enumConverter = true
+                        expression = '.*games.status'
+                    }
+                    forcedType {
+                        userType = 'de.saar.minecraft.broker.GameLogsDirection'
+                        enumConverter = true
+                        expression = '.*game_logs.direction'
+                    }
+                    forcedType {
+                        name = 'varchar'
+                        expression = '.*'
+                        types = 'JSONB?'
+                    }
+                    forcedType {
+                        name = 'varchar'
+                        expression = '.*'
+                        types = 'INET'
+                    }
+                }
+            }
+            target {
+                packageName = 'de.saar.minecraft.broker.db'
+             }
         }
-      }
     }
-    
-    generator {
-      name = 'org.jooq.codegen.DefaultGenerator'
-      strategy {
-        name = 'org.jooq.codegen.DefaultGeneratorStrategy'
-      }
-      
-      database {
-        name = 'org.jooq.meta.mysql.MySQLDatabase'
-        inputSchema = 'minecraft'
-	
-        forcedTypes {
-          forcedType {
-            name = 'varchar'
-            expression = '.*'
-            types = 'JSONB?'
-          }
-          forcedType {
-            name = 'varchar'
-            expression = '.*'
-            types = 'INET'
-          }
-        }
-      }
-      
-      target {
-        packageName = 'de.saar.minecraft.broker.db'
-	directory = 'src/generated/jooq/java'
-      }
-    }
-  }
 }
 
-
-
+// Local Variables:
+// groovy-indent-offset: 4
+// indent-tabs-mode: nil
+// End:
