@@ -67,7 +67,6 @@ public class ArchitectServer {
          */
         @Override
         public void startGame(GameDataWithId request, StreamObserver<ArchitectInformation> responseObserver) {
-            System.err.println("a");
             Architect arch = new DummyArchitect();
             runningArchitects.put(request.getId(), arch);
             responseObserver.onNext(ArchitectInformation.newBuilder().setInfo(arch.getArchitectInformation()).build());

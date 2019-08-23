@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.util.*;
 
@@ -81,6 +82,7 @@ public class HttpServer {
         @Override
         public void handle(HttpExchange t) throws IOException {
             String response = null;
+            int statusCode = HttpURLConnection.HTTP_OK;
             String path = t.getRequestURI().getPath();
 
             if( "/".equals(path)) {
@@ -127,10 +129,14 @@ public class HttpServer {
                         }
                     }
                 }
+            } else {
+                // undefined URL
+                response = "404 (not found)";
+                statusCode = HttpURLConnection.HTTP_NOT_FOUND;
             }
 
             // send response
-            t.sendResponseHeaders(200, response.length());
+            t.sendResponseHeaders(statusCode, response.length());
             OutputStream os = t.getResponseBody();
             os.write(response.getBytes());
             os.close();
