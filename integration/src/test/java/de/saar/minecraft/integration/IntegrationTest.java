@@ -91,7 +91,7 @@ public class IntegrationTest {
         boolean messageReceived = latch.await(2000, TimeUnit.MILLISECONDS);
 
         assert messageReceived;
-        assert ! receivedMessages.isEmpty();
+        assert !receivedMessages.isEmpty();
         assert receivedMessages.get(0).startsWith("your x was");
 
         client.finishGame(gameId);
@@ -109,7 +109,9 @@ public class IntegrationTest {
 
             @Override
             public void onError(Throwable t) {
-                latch.countDown();
+                if (t.getMessage().contains("No architect")) {
+                    latch.countDown();
+                }
             }
 
             @Override

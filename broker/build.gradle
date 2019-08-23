@@ -60,10 +60,12 @@ jooq {
                     }
 
                     // doesn't work yet in jOOQ 3.11
+                    /*
                     property {
                         key = 'defaultNameCase'
                         value = 'as_is'
                     }
+                    */
                 }
                 forcedTypes {
                     forcedType {
@@ -75,16 +77,6 @@ jooq {
                         userType = 'de.saar.minecraft.broker.GameLogsDirection'
                         enumConverter = true
                         expression = '.*game_logs.direction'
-                    }
-                    forcedType {
-                        name = 'varchar'
-                        expression = '.*'
-                        types = 'JSONB?'
-                    }
-                    forcedType {
-                        name = 'varchar'
-                        expression = '.*'
-                        types = 'INET'
                     }
                 }
             }

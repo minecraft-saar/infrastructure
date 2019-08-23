@@ -346,8 +346,8 @@ public class Broker {
             conn.setSchema("MINECRAFT");
 
             // create tables
-//            String createTablesStr = Util.slurp(new InputStreamReader(getClass().getResourceAsStream("/database.sql")));
-            stmt.executeUpdate(CREATE_TABLES);
+            String createTablesStr = Util.slurp(new InputStreamReader(getClass().getResourceAsStream("/database.sql")));
+            stmt.executeUpdate(createTablesStr);
         } catch (SQLException e) {
             e.printStackTrace();
             System.exit(1);
@@ -356,26 +356,4 @@ public class Broker {
         DSLContext ret = DSL.using(conn, SQLDialect.H2);
         return ret;
     }
-
-    private static final String CREATE_TABLES = "CREATE TABLE if not exists `game_logs` (\n" +
-            "  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,\n" +
-            "  `gameid` int(11) DEFAULT NULL,\n" +
-            "  `direction` enum('FromClient','ToClient','FromArchitect','ToArchitect','PassToClient','PassToArchitect','None') DEFAULT NULL,\n" +
-            "  `message_type` varchar(100) DEFAULT NULL,\n" +
-            "  `message` varchar(500) DEFAULT NULL,\n" +
-            "  `timestamp` timestamp NULL DEFAULT NULL,\n" +
-            "  PRIMARY KEY (`id`)\n" +
-            ")  ;\n" +
-            "\n" +
-            "CREATE TABLE if not exists `games` (\n" +
-            "  `id` int(11) NOT NULL AUTO_INCREMENT,\n" +
-            "  `client_ip` varchar(200) DEFAULT NULL,\n" +
-            "  `player_name` varchar(200) DEFAULT NULL,\n" +
-            "  `start_time` timestamp NULL DEFAULT NULL,\n" +
-            "  `status` enum('created','running','finished') DEFAULT NULL,\n" +
-            "  `architect_hostname` varchar(100) DEFAULT NULL,\n" +
-            "  `architect_port` int(11) DEFAULT NULL,\n" +
-            "  `architect_info` varchar(500) DEFAULT NULL,\n" +
-            "  PRIMARY KEY (`id`)\n" +
-            ")  ;";
 }
