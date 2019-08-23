@@ -44,6 +44,11 @@ jooq {
             }
             database {
                 name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
+
+                // make sure that we use the schema MINECRAFT in the generated code
+                inputSchema = 'PUBLIC'
+                outputSchema = 'MINECRAFT'
+                
                 properties {
                     property {
                         key = 'scripts'
@@ -52,6 +57,12 @@ jooq {
                     property {
                         key = 'sort'
                         value = 'semantic'
+                    }
+
+                    // doesn't work yet in jOOQ 3.11
+                    property {
+                        key = 'defaultNameCase'
+                        value = 'as_is'
                     }
                 }
                 forcedTypes {

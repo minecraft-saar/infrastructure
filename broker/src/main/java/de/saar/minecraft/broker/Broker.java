@@ -76,7 +76,6 @@ public class Broker {
                 .build();
         nonblockingArchitectStub = ArchitectGrpc.newStub(channelToArchitect);
         blockingArchitectStub = ArchitectGrpc.newBlockingStub(channelToArchitect);
-        System.err.printf("Connected to architect server at %s.\n", config.getArchitectServer());
 
         // check connection to Architect server and get architectInfo string
         try {
@@ -88,6 +87,8 @@ public class Broker {
             System.exit(1);
         }
 
+        System.err.printf("Connected to architect server at %s.\n", config.getArchitectServer());
+
         // open Broker service
         int port = config.getPort();
         server = ServerBuilder.forPort(port)
@@ -98,9 +99,7 @@ public class Broker {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-//                System.err.println("*** shutting down gRPC server since JVM is shutting down");
                 Broker.this.stop();
-//                System.err.println("*** server shut down");
             }
         });
 
@@ -291,9 +290,6 @@ public class Broker {
     public static void main(String[] args) throws IOException, InterruptedException {
         BrokerConfiguration config = BrokerConfiguration.loadYaml(new FileReader("broker-config.yaml"));
 
-        System.err.println("jdbc: " + config.getDatabase());
-        System.err.println("architect: " + config.getArchitectServer().getPort());
-
         Broker server = new Broker(config);
         server.start();
         server.blockUntilShutdown();
@@ -305,6 +301,7 @@ public class Broker {
             try {
                 conn = DriverManager.getConnection(config.getDatabase().getUrl(), config.getDatabase().getUsername(), config.getDatabase().getPassword());
                 DSLContext ret = DSL.using(conn, SQLDialect.valueOf(config.getDatabase().getSqlDialect()));
+                System.err.printf("Connected to %s database at %s.\n", config.getDatabase().getSqlDialect(), config.getDatabase().getUrl());
                 return ret;
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -321,7 +318,16 @@ public class Broker {
         }
 
         try {
-            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE";
+            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1";
+
+            // Capitalization in H2 is finicky. By default, H2 converts all unquoted names to uppercase,
+            // and is case-sensitive. Here we allow this default, to fit with the all-uppercase names
+            // that the jOOQ Gradle plugin generates; there it secretly uses a H2 database which can't
+            // be configured so easily. MySQL doesn't care about case, and can live with the uppercased
+            // names.
+            //
+            // If we ever choose to go back to the original, un-uppercased names, we can achieve
+            // this here by adding the following string to the JDBC URL: ";DATABASE_TO_UPPER=FALSE"
 
             // create db configuration (for display on website)
             BrokerConfiguration.DatabaseAddress db = new BrokerConfiguration.DatabaseAddress();
@@ -334,8 +340,8 @@ public class Broker {
             // create schema "minecraft" and activate it
             conn = DriverManager.getConnection(url, "", "");
             Statement stmt = conn.createStatement();
-            stmt.executeUpdate("create schema if not exists minecraft;");
-            conn.setSchema("minecraft");
+            stmt.executeUpdate("create schema if not exists MINECRAFT;"); // note the uppercased schema name
+            conn.setSchema("MINECRAFT");
 
             // create tables
             stmt.executeUpdate(CREATE_TABLES);

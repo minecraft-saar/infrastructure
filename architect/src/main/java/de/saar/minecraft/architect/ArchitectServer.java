@@ -44,9 +44,7 @@ public class ArchitectServer {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
-//                System.err.println("*** shutting down gRPC server since JVM is shutting down");
                 ArchitectServer.this.stop();
-//                System.err.println("*** server shut down");
             }
         });
 

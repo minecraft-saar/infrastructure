@@ -112,6 +112,9 @@ public class BrokerConfiguration {
             return hostname + ":" + port;
         }
 
+        public ArchitectServerAddress() {
+        }
+
         public ArchitectServerAddress(String hostname, int port) {
             this.hostname = hostname;
             this.port = port;
