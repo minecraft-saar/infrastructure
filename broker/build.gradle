@@ -69,12 +69,12 @@ jooq {
                 }
                 forcedTypes {
                     forcedType {
-                        userType = 'de.saar.minecraft.broker.GameStatus'
+                        userType = 'de.saar.minecraft.broker.db.GameStatus'
                         enumConverter = true
                         expression = '.*games.status'
                     }
                     forcedType {
-                        userType = 'de.saar.minecraft.broker.GameLogsDirection'
+                        userType = 'de.saar.minecraft.broker.db.GameLogsDirection'
                         enumConverter = true
                         expression = '.*game_logs.direction'
                     }

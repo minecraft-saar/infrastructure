@@ -6,6 +6,8 @@ import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
 import de.saar.minecraft.architect.ArchitectInformation;
 import de.saar.minecraft.architect.GameDataWithId;
+import de.saar.minecraft.broker.db.GameLogsDirection;
+import de.saar.minecraft.broker.db.GameStatus;
 import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
