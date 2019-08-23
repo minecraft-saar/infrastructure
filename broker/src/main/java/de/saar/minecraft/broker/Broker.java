@@ -13,6 +13,7 @@ import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.Void;
+import de.saar.minecraft.util.Util;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
 import org.jooq.DSLContext;
@@ -21,6 +22,7 @@ import org.jooq.impl.DSL;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.*;
 
 public class Broker {
@@ -344,6 +346,7 @@ public class Broker {
             conn.setSchema("MINECRAFT");
 
             // create tables
+//            String createTablesStr = Util.slurp(new InputStreamReader(getClass().getResourceAsStream("/database.sql")));
             stmt.executeUpdate(CREATE_TABLES);
         } catch (SQLException e) {
             e.printStackTrace();

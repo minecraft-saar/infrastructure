@@ -13,6 +13,7 @@ import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.Games;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
+import de.saar.minecraft.util.Util;
 import org.jooq.Record;
 import org.jooq.Result;
 
@@ -62,20 +63,7 @@ public class HttpServer {
 
     private static String slurp(String resourceName) {
         Reader r = new InputStreamReader(HttpServer.class.getResourceAsStream(resourceName));
-
-        try {
-            char[] arr = new char[8 * 1024];
-            StringBuilder buffer = new StringBuilder();
-            int numCharsRead;
-            while ((numCharsRead = r.read(arr, 0, arr.length)) != -1) {
-                buffer.append(arr, 0, numCharsRead);
-            }
-            r.close();
-
-            return buffer.toString();
-        } catch(IOException e) {
-            return null;
-        }
+        return Util.slurp(r);
     }
 
     private class MyHandler implements HttpHandler {

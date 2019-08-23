@@ -13,7 +13,7 @@ CREATE TABLE games (
   client_ip varchar(200),
   player_name varchar(200),
   start_time TIMESTAMP,
-  status varchar(20) NOT NULL CHECK (status IN ('created','running','finished')),	
+  status varchar(20) NOT NULL CHECK (status IN ('created','running','finished')),
   architect_hostname varchar(100),
   architect_port int(11),
   architect_info varchar(500)
