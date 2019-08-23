@@ -15,17 +15,27 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * A server which provides access to Architects of one type.
+ * This server responds to gRPC requests from the Broker, creates
+ * and destroys Architect instances as needed, and routes further
+ * requests from one player on the Minecraft server to their
+ * corresponding Architect instance.
+ *
+ */
 public class ArchitectServer {
     private Server server;
     private Map<Integer, Architect> runningArchitects;
+    private ArchitectFactory factory;
+    private int port;
 
-    public ArchitectServer() {
+    public ArchitectServer(int port, ArchitectFactory factory) {
+        this.factory = factory;
+        this.port = port;
         runningArchitects = new HashMap<>();
     }
 
     private void start() throws IOException {
-        int port = 10000;
-
         server = ServerBuilder.forPort(port)
                 .addService(new ArchitectImpl())
                 .build()
@@ -40,7 +50,10 @@ public class ArchitectServer {
             }
         });
 
-        System.err.println("Architect server running.");
+        String info = factory.build().getArchitectInformation();
+
+        System.err.printf("Architect server running on port %d.\n", port);
+        System.err.println(info);
     }
 
     private void stop() {
@@ -71,7 +84,9 @@ public class ArchitectServer {
          */
         @Override
         public void hello(Void request, StreamObserver<ArchitectInformation> responseObserver) {
-            Architect arch = new DummyArchitect();
+            Architect arch = factory.build();
+            // no need to initialize it, it will disappear right away
+
             responseObserver.onNext(ArchitectInformation.newBuilder().setInfo(arch.getArchitectInformation()).build());
             responseObserver.onCompleted();
         }
@@ -84,7 +99,8 @@ public class ArchitectServer {
          */
         @Override
         public void startGame(GameDataWithId request, StreamObserver<Void> responseObserver) {
-            Architect arch = new DummyArchitect();
+            Architect arch = factory.build();
+            arch.initialize();
             runningArchitects.put(request.getId(), arch);
 
             responseObserver.onNext(Void.newBuilder().build());
@@ -135,7 +151,8 @@ public class ArchitectServer {
      * Starts an architect server.
      */
     public static void main(String[] args) throws IOException, InterruptedException {
-        ArchitectServer server = new ArchitectServer();
+        ArchitectFactory factory = () -> new DummyArchitect();
+        ArchitectServer server = new ArchitectServer(10000, factory);
         server.start();
         server.blockUntilShutdown();
     }

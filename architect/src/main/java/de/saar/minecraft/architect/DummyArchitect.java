@@ -7,6 +7,11 @@ import io.grpc.stub.StreamObserver;
 public class DummyArchitect implements Architect {
 
     @Override
+    public void initialize() {
+        
+    }
+
+    @Override
     public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
         int x = request.getX();
         int gameId = request.getGameId();
