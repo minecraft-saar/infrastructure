@@ -24,7 +24,7 @@ public class IntegrationTest {
 
     @Before
     public void setup() throws IOException {
-        architectServer = new ArchitectServer(10000, () -> new DummyArchitect());
+        architectServer = new ArchitectServer(10000, () -> new DummyArchitect(0));
         architectServer.start();
 
         BrokerConfiguration config = new BrokerConfiguration();
