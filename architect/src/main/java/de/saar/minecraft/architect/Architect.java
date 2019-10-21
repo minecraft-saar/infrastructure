@@ -1,5 +1,7 @@
 package de.saar.minecraft.architect;
 
+import de.saar.minecraft.shared.BlockDestroyedMessage;
+import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import io.grpc.stub.StreamObserver;
@@ -33,6 +35,18 @@ public interface Architect {
      * @param responseObserver
      */
     public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver);
+
+    /**
+     * Handles updates when a block is placed in the Minecraft world
+     */
+    public void handleBlockPlaced(BlockPlacedMessage request, StreamObserver<TextMessage> responseObserver);
+
+    /**
+     * Handles updates when a block in the Minecraft world is destroyed
+     * @param request
+     * @param responseObserver
+     */
+    public void handleBlockDestroyed(BlockDestroyedMessage request, StreamObserver<TextMessage> responseObserver);
 
     /**
      * Returns a string which identifies this Architect. The string might
