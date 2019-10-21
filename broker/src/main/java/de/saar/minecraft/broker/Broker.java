@@ -11,6 +11,8 @@ import de.saar.minecraft.broker.db.GameStatus;
 import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
+import de.saar.minecraft.shared.BlockDestroyedMessage;
+import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
@@ -197,6 +199,18 @@ public class Broker {
         public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             nonblockingArchitectStub.handleStatusInformation(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
+        }
+
+        @Override
+        public void handleBlockPlaced(BlockPlacedMessage request, StreamObserver<TextMessage> responseObserver) {
+            log(request.getGameId(), request, GameLogsDirection.FromClient);
+            nonblockingArchitectStub.handleBlockPlaced(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
+        }
+
+        @Override
+        public void handleBlockDestroyed(BlockDestroyedMessage request, StreamObserver<TextMessage> responseObserver) {
+            log(request.getGameId(), request, GameLogsDirection.FromClient);
+            nonblockingArchitectStub.handleBlockDestroyed(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
         }
 
     }

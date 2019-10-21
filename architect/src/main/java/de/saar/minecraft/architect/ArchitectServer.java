@@ -2,6 +2,8 @@ package de.saar.minecraft.architect;
 
 import com.google.rpc.Code;
 import com.google.rpc.Status;
+import de.saar.minecraft.shared.BlockDestroyedMessage;
+import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
@@ -140,6 +142,48 @@ public class ArchitectServer {
                 responseObserver.onError(StatusProto.toStatusRuntimeException(status));
             } else {
                 arch.handleStatusInformation(request, responseObserver);
+            }
+        }
+
+        /**
+         * Delegates the block placed message to the architect for the given game ID
+         *
+         * @param request
+         * @param responseObserver
+         */
+        @Override
+        public void handleBlockPlaced(BlockPlacedMessage request, StreamObserver<TextMessage> responseObserver){
+            Architect arch = runningArchitects.get(request.getGameId());
+
+            if (arch == null) {
+                Status status = Status.newBuilder()
+                    .setCode(Code.INVALID_ARGUMENT.getNumber())
+                    .setMessage("No architect running for game ID " + request.getGameId())
+                    .build();
+                responseObserver.onError(StatusProto.toStatusRuntimeException(status));
+            } else {
+                arch.handleBlockPlaced(request, responseObserver);
+            }
+        }
+
+        /**
+         * Delegates the block destroyed message to the architect for the given game ID.
+         *
+         * @param request
+         * @param responseObserver
+         */
+        @Override
+        public void handleBlockDestroyed(BlockDestroyedMessage request, StreamObserver<TextMessage> responseObserver) {
+            Architect arch = runningArchitects.get(request.getGameId());
+
+            if (arch == null) {
+                Status status = Status.newBuilder()
+                    .setCode(Code.INVALID_ARGUMENT.getNumber())
+                    .setMessage("No architect running for game ID " + request.getGameId())
+                    .build();
+                responseObserver.onError(StatusProto.toStatusRuntimeException(status));
+            } else {
+                arch.handleBlockDestroyed(request, responseObserver);
             }
         }
     }
