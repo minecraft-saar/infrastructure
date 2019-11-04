@@ -17,4 +17,4 @@ jobs:
       env:
         GPR_USER: x-access-token
         GPR_API_KEY: ${{ secrets.GITHUB_TOKEN }}
-      run: ./gradlew publish
+      run: ./gradlew build
