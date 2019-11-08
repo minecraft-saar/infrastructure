@@ -58,7 +58,7 @@ public class DummyArchitect implements Architect {
         new Thread() {
             @Override
             public void run() {
-                String text = String.format("A %d block was just placed", type);
+                String text = String.format("A block was just placed :%d", type);
                 TextMessage mText = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
 
                 // delay for a bit
