@@ -52,13 +52,16 @@ public class DummyArchitect implements Architect {
     public void handleBlockPlaced(BlockPlacedMessage request,
         StreamObserver<TextMessage> responseObserver) {
         int type = request.getType();
+        int x = request.getX();
+        int y = request.getY();
+        int z = request.getZ();
         int gameId = request.getGameId();
 
         // spawn a thread for a long-running computation
         new Thread() {
             @Override
             public void run() {
-                String text = String.format("A block was just placed :%d", type);
+                String text = String.format("A block was just placed at %d-%d-%d :%d", x, y, z, type);
                 TextMessage mText = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
 
                 // delay for a bit
@@ -78,14 +81,17 @@ public class DummyArchitect implements Architect {
     @Override
     public void handleBlockDestroyed(BlockDestroyedMessage request,
         StreamObserver<TextMessage> responseObserver) {
-            int type = request.getType();
-            int gameId = request.getGameId();
+        int gameId = request.getGameId();
+        int x = request.getX();
+        int y = request.getY();
+        int z = request.getZ();
+        int type = request.getType();
 
             // spawn a thread for a long-running computation
             new Thread() {
                 @Override
                 public void run() {
-                    String text = String.format("A block was just destroyed :%d", type);
+                    String text = String.format("A block was just destroyed at %d-%d-%d :%d", x, y, z, type);
                     TextMessage mText = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
 
                     // delay for a bit
