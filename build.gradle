@@ -24,21 +24,32 @@ allprojects {
             url "https://maven-central.storage-download.googleapis.com/repos/central/data/" }
         mavenLocal()
     }
-    
     scmVersion {
         tag {
-            prefix = ''
+            prefix = 'release'
         }
     }
     version = scmVersion.version
 }
 
 subprojects {
-    apply plugin: "maven"
+    apply plugin: "maven-publish"
     apply plugin: "java"
     apply plugin: 'com.github.johnrengelman.shadow'
     
     sourceCompatibility = 1.11
+    group 'de.saar.minecraft'
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                afterEvaluate {
+                    artifactId = project.name
+                }
+            }
+        }
+    }
     
     spotbugs {
         toolVersion = '4.0.0-beta3'
