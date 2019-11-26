@@ -12,7 +12,7 @@ message StatusMessage {
     int32 x = 2;
     int32 y = 3;
     int32 z = 4;
-	int32 orientation = 5;
+    int32 orientation = 5;
 }
 
 message TextMessage {
@@ -34,6 +34,11 @@ message BlockDestroyedMessage {
     int32 y = 3;
     int32 z = 4;
     int32 type = 5;
+}
+
+message WorldSelectMessage {
+    int32 gameId = 1;
+    string name = 2;
 }
 
 

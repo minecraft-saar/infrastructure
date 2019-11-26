@@ -17,6 +17,7 @@ import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.Void;
+import de.saar.minecraft.shared.WorldSelectMessage;
 import de.saar.minecraft.util.Util;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
@@ -137,7 +138,7 @@ public class Broker {
          * @param responseObserver
          */
         @Override
-        public void startGame(GameData request, StreamObserver<GameId> responseObserver) {
+        public void startGame(GameData request, StreamObserver<WorldSelectMessage> responseObserver) {
             Stopwatch sw = Stopwatch.createStarted();
 
             GamesRecord rec = jooq.newRecord(Tables.GAMES);
@@ -151,9 +152,11 @@ public class Broker {
 
 //            System.err.printf("db insert: %s\n", sw);
 
+            // Select new game
+            WorldSelectMessage mWorld = WorldSelectMessage.newBuilder().setGameId(id).setName("bridge").build();  // TODO: actually select instead of hardcoded 'bridge'
             // tell architect about the new game
-            GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).build();
-            Void x = blockingArchitectStub.startGame(mGameDataWithId);
+//            GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).build();
+            Void x = blockingArchitectStub.startGame(mWorld);
 
 //            System.err.printf("architect instantiated: %s\n", sw);
 
@@ -164,9 +167,9 @@ public class Broker {
 
 //            System.err.printf("db updated: %s\n", sw);
 
-            // tell client the game ID
-            GameId idMessage = GameId.newBuilder().setId(id).build();
-            responseObserver.onNext(idMessage);
+            // tell client the game ID and selected world
+            //GameId idMessage = GameId.newBuilder().setId(id).build();
+            responseObserver.onNext(mWorld);
             responseObserver.onCompleted();
 
 //            System.err.printf("client called back: %s\n", sw);

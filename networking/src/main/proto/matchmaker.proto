@@ -10,7 +10,7 @@ import "shared.proto";
 
 
 service Broker {
-    rpc StartGame (GameData) returns (GameId) {}
+    rpc StartGame (GameData) returns (WorldSelectMessage) {}
     rpc EndGame (GameId) returns (Void) {}
     rpc HandleStatusInformation (StatusMessage) returns (stream TextMessage) {}
     rpc HandleBlockPlaced (BlockPlacedMessage) returns (stream TextMessage) {}

@@ -4,6 +4,7 @@ import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
+import de.saar.minecraft.shared.WorldSelectMessage;
 import io.grpc.stub.StreamObserver;
 
 public class DummyArchitect implements Architect {
@@ -18,8 +19,8 @@ public class DummyArchitect implements Architect {
     }
 
     @Override
-    public void initialize() {
-
+    public void initialize(WorldSelectMessage request) {
+        System.err.println("Got world " + request.getName());
     }
 
     @Override

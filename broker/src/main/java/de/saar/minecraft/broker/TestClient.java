@@ -3,6 +3,7 @@ package de.saar.minecraft.broker;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
+import de.saar.minecraft.shared.WorldSelectMessage;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
@@ -63,15 +64,15 @@ public class TestClient {
 
     GameData mGameInfo = GameData.newBuilder().setClientAddress(hostname).setPlayerName(playerName).build();
 
-    GameId mGameId;
+    WorldSelectMessage mWorldSelect;
     try {
-      mGameId = blockingStub.startGame(mGameInfo);
+      mWorldSelect = blockingStub.startGame(mGameInfo);
     } catch (StatusRuntimeException e) {
       System.err.println("RPC failed: " + e.getStatus());
       return -1;
     }
 
-    int ret = mGameId.getId();
+    int ret = mWorldSelect.getGameId();
     return ret;
   }
 

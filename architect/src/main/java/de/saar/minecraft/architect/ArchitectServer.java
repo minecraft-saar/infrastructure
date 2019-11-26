@@ -8,6 +8,7 @@ import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.Void;
+import de.saar.minecraft.shared.WorldSelectMessage;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.protobuf.StatusProto;
@@ -98,15 +99,15 @@ public class ArchitectServer {
          * @param responseObserver
          */
         @Override
-        public void startGame(GameDataWithId request, StreamObserver<Void> responseObserver) {
+        public void startGame(WorldSelectMessage request, StreamObserver<Void> responseObserver) {
             Architect arch = factory.build();
-            arch.initialize();
-            runningArchitects.put(request.getId(), arch);
+            arch.initialize(request);
+            runningArchitects.put(request.getGameId(), arch);
 
             responseObserver.onNext(Void.newBuilder().build());
             responseObserver.onCompleted();
 
-            System.err.printf("architect for id %d: %s\n", request.getId(), arch);
+            System.err.printf("architect for id %d: %s\n", request.getGameId(), arch);
         }
 
         /**

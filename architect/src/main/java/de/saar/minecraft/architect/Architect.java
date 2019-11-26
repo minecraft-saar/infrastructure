@@ -4,6 +4,7 @@ import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
+import de.saar.minecraft.shared.WorldSelectMessage;
 import io.grpc.stub.StreamObserver;
 
 /**
@@ -12,7 +13,7 @@ import io.grpc.stub.StreamObserver;
  * Creating an object of a subclass of Architect should be cheap, because
  * it is done several times during the setup of the Architect Server that
  * contains it. Any substantial initialization effort should happen in the
- * {@link #initialize()} method.
+ * {@link #initialize(WorldSelectMessage)} method.
  *
  */
 public interface Architect {
@@ -22,7 +23,7 @@ public interface Architect {
      * This method is guaranteed to be called before any of the other methods
      * of this interface.
      */
-    public void initialize();
+    public void initialize(WorldSelectMessage request);
 
     /**
      * Handles the regular status updates from the Minecraft server.
@@ -38,6 +39,8 @@ public interface Architect {
 
     /**
      * Handles updates when a block is placed in the Minecraft world
+     * @param request
+     * @param responseObserver
      */
     public void handleBlockPlaced(BlockPlacedMessage request, StreamObserver<TextMessage> responseObserver);
 

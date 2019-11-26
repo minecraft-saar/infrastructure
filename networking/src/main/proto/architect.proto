@@ -11,7 +11,7 @@ import "shared.proto";
 
 service Architect {
     rpc Hello (Void) returns (ArchitectInformation) {}
-    rpc StartGame (GameDataWithId) returns (Void) {}
+    rpc StartGame (WorldSelectMessage) returns (Void) {}
     rpc EndGame (GameId) returns (Void) {}
     rpc HandleStatusInformation (StatusMessage) returns (stream TextMessage) {}
     rpc HandleBlockPlaced (BlockPlacedMessage) returns (stream TextMessage) {}
