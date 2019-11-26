@@ -38,8 +38,22 @@ subprojects {
     apply plugin: 'com.github.johnrengelman.shadow'
     
     sourceCompatibility = 1.11
-    group 'de.saar.minecraft'
+    group 'de.saar.minecraft.infrastructure'
 
+    task sourcesJar(type: Jar, dependsOn: classes) {
+        classifier = 'sources'
+        from sourceSets.main.allSource
+    }
+    
+    javadoc {
+	    failOnError = false
+    }
+    
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+    }
+    
     publishing {
         repositories {
             maven {
@@ -52,12 +66,15 @@ subprojects {
             }
         }
         publications {
-            mavenJava(MavenPublication) {
+            "$project.name"(MavenPublication) {
+                groupId project.group
+                artifactId project.name
+                version project.version
                 from components.java
-                afterEvaluate {
-                    artifactId = project.name
-                }
+                artifact sourcesJar
+                artifact javadocJar
             }
+
         }
     }
     
