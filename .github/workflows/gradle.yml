@@ -16,5 +16,5 @@ jobs:
     - name: Build with Gradle
       env:
         GPR_USER: x-access-token
-        GPR_API_KEY: ${{ secrets.GITHUB_TOKEN }}
-      run: ./gradlew build
+        GPR_API_KEY: ${{ secrets.BOT_TOKEN }}
+      run: ./gradlew publish
