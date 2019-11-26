@@ -41,6 +41,16 @@ subprojects {
     group 'de.saar.minecraft'
 
     publishing {
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/minecraft-saar/minecraft-nlg")
+                credentials {
+                    username = project.findProperty("gpr.user") ?: System.getenv("GPR_USER")
+                    password = project.findProperty("gpr.key") ?: System.getenv("GPR_API_KEY")
+                }
+            }
+        }
         publications {
             mavenJava(MavenPublication) {
                 from components.java
