@@ -44,7 +44,7 @@ subprojects {
         repositories {
             maven {
                 name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/minecraft-saar/minecraft-nlg")
+                url = uri("https://maven.pkg.github.com/minecraft-saar/infrastructure")
                 credentials {
                     username = project.findProperty("gpr.user") ?: System.getenv("GPR_USER")
                     password = project.findProperty("gpr.key") ?: System.getenv("GPR_API_KEY")

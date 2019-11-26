@@ -1,6 +1,9 @@
 name: Java CI
 
-on: [push]
+on:
+  push:
+    tags:
+     - 'release-*'
 
 jobs:
   build:
@@ -17,4 +20,4 @@ jobs:
       env:
         GPR_USER: x-access-token
         GPR_API_KEY: ${{ secrets.BOT_TOKEN }}
-      run: ./gradlew build
+      run: ./gradlew publish
