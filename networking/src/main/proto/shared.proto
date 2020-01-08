@@ -12,7 +12,9 @@ message StatusMessage {
     int32 x = 2;
     int32 y = 3;
     int32 z = 4;
-    int32 orientation = 5;
+    double xDirection = 5;
+    double yDirection = 6;
+    double zDirection = 7;
 }
 
 message TextMessage {

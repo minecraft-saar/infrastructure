@@ -26,13 +26,14 @@ public class DummyArchitect implements Architect {
     @Override
     public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
         int x = request.getX();
+        double xDir = request.getXDirection();
         int gameId = request.getGameId();
 
         // spawn a thread for a long-running computation
         new Thread() {
             @Override
             public void run() {
-                String text = "your x was " + x;
+                String text = "your x was " + x + " and you looked in x direction " + xDir;
                 TextMessage mText = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
 
                 // delay for a bit

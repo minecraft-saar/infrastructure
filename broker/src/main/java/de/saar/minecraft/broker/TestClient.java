@@ -86,12 +86,12 @@ public class TestClient {
    * Sends a status message for the given game ID to the matchmaker. Handles any text messages that
    * the matchmaker sends back.
    */
-  public void sendStatusMessage(int gameId, int x, int y, int z) {
-    sendStatusMessage(gameId, x, y, z, new TextStreamObserver(gameId));
+  public void sendStatusMessage(int gameId, int x, int y, int z, double xDir, double yDir, double zDir) {
+    sendStatusMessage(gameId, x, y, z, xDir, yDir, zDir, new TextStreamObserver(gameId));
   }
 
-  public void sendStatusMessage(int gameId, int x, int y, int z, StreamObserver<TextMessage> observer) {
-    StatusMessage mStatus = StatusMessage.newBuilder().setGameId(gameId).setX(x).setY(y).setZ(z).build();
+  public void sendStatusMessage(int gameId, int x, int y, int z, double xDir, double yDir, double zDir, StreamObserver<TextMessage> observer) {
+    StatusMessage mStatus = StatusMessage.newBuilder().setGameId(gameId).setX(x).setY(y).setZ(z).setXDirection(xDir).setYDirection(yDir).setZDirection(zDir).build();
     nonblockingStub.handleStatusInformation(mStatus, observer);
   }
 
@@ -131,7 +131,7 @@ public class TestClient {
           break;
         } else if (gameData.startsWith(STATUS)) {
           int id = Integer.parseInt(gameData.substring(STATUS.length() + 1));
-          client.sendStatusMessage(id, 1, 2, 3);
+          client.sendStatusMessage(id, 1, 2, 3, 0.4, 0.0, -0.7);
         } else {
           gameId = client.registerGame(gameData);
           System.err.printf("got game ID %d\n", gameId);
