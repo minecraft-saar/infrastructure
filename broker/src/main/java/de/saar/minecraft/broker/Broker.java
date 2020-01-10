@@ -14,9 +14,11 @@ import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
+import de.saar.minecraft.shared.MinecraftServerError;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.Void;
+import de.saar.minecraft.shared.WorldFileError;
 import de.saar.minecraft.shared.WorldSelectMessage;
 import de.saar.minecraft.util.Util;
 import io.grpc.*;
@@ -214,6 +216,26 @@ public class Broker {
         public void handleBlockDestroyed(BlockDestroyedMessage request, StreamObserver<TextMessage> responseObserver) {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             nonblockingArchitectStub.handleBlockDestroyed(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
+        }
+
+        @Override
+        public void handleMinecraftServerError(MinecraftServerError request, StreamObserver<Void> responseObserver) {
+            log(request.getGameId(), request, GameLogsDirection.FromClient);
+            //TODO: react to error (restart?, shutdown with error message?)
+
+            Void v = null;
+            responseObserver.onNext(v);
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void handleWorldFileError(WorldFileError request, StreamObserver<Void> responseObserver) {
+            log(request.getGameId(), request, GameLogsDirection.FromClient);
+            //TODO: react to error
+
+            Void v = null;
+            responseObserver.onNext(v);
+            responseObserver.onCompleted();
         }
 
     }

@@ -48,6 +48,16 @@ message GameId {
     int32 id = 1;
 }
 
+message MinecraftServerError {
+    int32 gameId = 1;
+    string message = 2;
+}
+
+message WorldFileError {
+    int32 gameId = 1;
+    string message = 2;
+}
+
 
 message Void {
 
