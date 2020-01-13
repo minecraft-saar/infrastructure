@@ -5,7 +5,6 @@ import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
 import de.saar.minecraft.architect.ArchitectInformation;
-import de.saar.minecraft.architect.GameDataWithId;
 import de.saar.minecraft.broker.db.GameLogsDirection;
 import de.saar.minecraft.broker.db.GameStatus;
 import de.saar.minecraft.broker.db.Tables;
@@ -21,8 +20,12 @@ import de.saar.minecraft.shared.Void;
 import de.saar.minecraft.shared.WorldFileError;
 import de.saar.minecraft.shared.WorldSelectMessage;
 import de.saar.minecraft.util.Util;
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 import io.grpc.*;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
@@ -31,8 +34,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.sql.*;
+import java.util.List;
+import java.util.Random;
+import java.util.stream.Collectors;
 
 public class Broker {
+    private static Logger logger = LogManager.getLogger(Broker.class);
     private static final String MESSAGE_TYPE_ERROR = "ERROR";
     private static final String MESSAGE_TYPE_LOG = "LOG";
 
@@ -49,19 +56,22 @@ public class Broker {
     private Connection conn = null;
 
     private final TextFormat.Printer pr = TextFormat.printer();
+    private List<String> objectives;
 
     public Broker(BrokerConfiguration config) {
+        logger.trace("Broker initialization");
+        initObjectives();
         this.config = config;
         jooq = setupDatabase();
 
         // start web server
         if (config.getHttpPort() == 0) {
-            System.err.println("No HTTP port specified, will run without HTTP server.");
+            logger.warn("No HTTP port specified, will run without HTTP server.");
         } else {
             try {
                 new HttpServer().start(this);
             } catch (IOException e) {
-                System.err.println("Could not open HTTP server, will run without it.");
+                logger.warn("Could not open HTTP server, will run without it.");
                 e.printStackTrace();
             }
         }
@@ -90,13 +100,13 @@ public class Broker {
         try {
             architectInfo = blockingArchitectStub.hello(Void.newBuilder().build());
         } catch (StatusRuntimeException e) {
-            System.err.printf("\nERROR: Failed to connect to architect server at %s:\n",
-                    config.getArchitectServer());
-            System.err.println(e.getCause().getMessage());
+            logger.error("Failed to connect to architect server at " +
+                         config.getArchitectServer() + "\n" +
+                         e.getCause().getMessage());
             System.exit(1);
         }
 
-        System.err.printf("Connected to architect server at %s.\n", config.getArchitectServer());
+        logger.info("Connected to architect server at " + config.getArchitectServer());
 
         // open Broker service
         int port = config.getPort();
@@ -112,7 +122,7 @@ public class Broker {
             }
         });
 
-        System.err.println("Broker service running.");
+        logger.info("Broker service running.");
     }
 
     public void stop() {
@@ -152,33 +162,22 @@ public class Broker {
             int id = rec.getId();
             setGameStatus(id, GameStatus.Created);
 
-//            System.err.printf("db insert: %s\n", sw);
-
             // Select new game
-            WorldSelectMessage mWorld = WorldSelectMessage.newBuilder().setGameId(id).setName("bridge").build();  // TODO: actually select instead of hardcoded 'bridge'
+            WorldSelectMessage mWorld = WorldSelectMessage.newBuilder().setGameId(id).setName("bridge").build();
+            // TODO: actually select instead of hardcoded 'bridge'
             // tell architect about the new game
-//            GameDataWithId mGameDataWithId = GameDataWithId.newBuilder().setId(id).build();
             Void x = blockingArchitectStub.startGame(mWorld);
-
-//            System.err.printf("architect instantiated: %s\n", sw);
 
             rec.setArchitectHostname(config.getArchitectServer().getHostname());
             rec.setArchitectPort(config.getArchitectServer().getPort());
             rec.setArchitectInfo(architectInfo.getInfo());
             rec.store();
 
-//            System.err.printf("db updated: %s\n", sw);
-
             // tell client the game ID and selected world
-            //GameId idMessage = GameId.newBuilder().setId(id).build();
             responseObserver.onNext(mWorld);
             responseObserver.onCompleted();
 
-//            System.err.printf("client called back: %s\n", sw);
-
             setGameStatus(id, GameStatus.Running);
-
-//            System.err.printf("done: %s\n", sw);
         }
 
         @Override
@@ -254,6 +253,31 @@ public class Broker {
         glr.store();
     }
 
+    /**
+     * Finds all resources that define objectives.
+     */
+    private void initObjectives() {
+        try (ScanResult scanResult = new ClassGraph()
+            .whitelistPaths("de/saar/minecraft/worlds")
+            .scan()) {
+            objectives = scanResult.getAllResources()
+                .filter(x -> x.getURL().getFile().endsWith(".csv"))
+                .getPaths()
+                .stream().map(x -> x.substring(x.lastIndexOf("/") + 1, x.length() - 4))
+                .collect(Collectors.toList());
+        }
+        logger.info("Found these objectives: {}", String.join(" ", objectives));
+    }
+
+    /**
+     * Selects an objective for the next game.
+     */
+    private String selectObjective() {
+        var num = objectives.size();
+        var selected = new Random().nextInt(num);
+        return objectives.get(selected);
+    }
+    
     private static class DummyStreamObserver<E> implements StreamObserver<E> {
         @Override
         public void onNext(E value) {
@@ -326,10 +350,6 @@ public class Broker {
         rec.store();
     }
 
-    private void log(String message) {
-        System.err.println("Logged: " + message);
-    }
-
     public static void main(String[] args) throws IOException, InterruptedException {
         BrokerConfiguration config = BrokerConfiguration.loadYaml(new FileReader("broker-config.yaml"));
 
@@ -344,14 +364,16 @@ public class Broker {
             try {
                 conn = DriverManager.getConnection(config.getDatabase().getUrl(), config.getDatabase().getUsername(), config.getDatabase().getPassword());
                 DSLContext ret = DSL.using(conn, SQLDialect.valueOf(config.getDatabase().getSqlDialect()));
-                System.err.printf("Connected to %s database at %s.\n", config.getDatabase().getSqlDialect(), config.getDatabase().getUrl());
+                logger.info("Connected to {} database at {}.",
+                            config.getDatabase().getSqlDialect(),
+                            config.getDatabase().getUrl());
                 return ret;
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
 
-        System.err.println("Could not connect to database; setting up temporary in-memory database.");
+        logger.warn("Could not connect to database; setting up temporary in-memory database.");
 
         try {
             Class.forName("org.h2.Driver");

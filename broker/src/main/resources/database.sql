@@ -14,6 +14,7 @@ CREATE TABLE if not exists games (
   player_name varchar(200),
   start_time TIMESTAMP,
   status varchar(100),
+  objective varchar(200),
   architect_hostname varchar(100),
   architect_port int(11),
   architect_info varchar(500)

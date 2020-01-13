@@ -8,6 +8,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -22,6 +24,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class TestClient {
 
+  private static Logger logger = LogManager.getLogger(TestClient.class);
   private ManagedChannel channel;
   private BrokerGrpc.BrokerBlockingStub blockingStub;
   private BrokerGrpc.BrokerStub nonblockingStub;
@@ -68,7 +71,7 @@ public class TestClient {
     try {
       mWorldSelect = blockingStub.startGame(mGameInfo);
     } catch (StatusRuntimeException e) {
-      System.err.println("RPC failed: " + e.getStatus());
+      logger.error("RPC failed: " + e.getStatus());
       return -1;
     }
 
@@ -104,12 +107,12 @@ public class TestClient {
 
     @Override
     public void onNext(TextMessage value) {
-      System.err.printf("got text message for gameid %d: %s\n", gameId, value);
+      logger.info("got text message for gameid {}: {}", gameId, value);
     }
 
     @Override
     public void onError(Throwable t) {
-      System.err.println("ERROR: " + t.toString());
+      logger.error(t.toString());
     }
 
     @Override
@@ -134,7 +137,7 @@ public class TestClient {
           client.sendStatusMessage(id, 1, 2, 3, 0.4, 0.0, -0.7);
         } else {
           gameId = client.registerGame(gameData);
-          System.err.printf("got game ID %d\n", gameId);
+          logger.info("got game ID {}", gameId);
         }
       }
     } finally {

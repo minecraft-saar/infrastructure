@@ -14,6 +14,8 @@ import de.saar.minecraft.broker.db.tables.Games;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.util.Util;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jooq.Record;
 import org.jooq.Result;
 
@@ -26,6 +28,7 @@ import java.net.InetSocketAddress;
 import java.util.*;
 
 public class HttpServer {
+    private static Logger logger = LogManager.getLogger(HttpServer.class);
     private CarrotEngine engine;
     private Broker broker;
 
@@ -49,7 +52,7 @@ public class HttpServer {
                 .setResourceLocator(makeResourceLocator())
                 .build());
 
-        System.err.println("HTTP server running on port " + port + ".");
+        logger.info("HTTP server running on port " + port + ".");
     }
 
     private ResourceLocator.Builder makeResourceLocator() {
