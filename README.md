@@ -12,7 +12,7 @@ Infrastructure for connecting a Minecraft server to the NLG system.
 (the shadow Jar is in architect/build/libs/architect-0.1.0-SNAPSHOT-all.jar)
 
 
-### Start the Matchmaker
+### Start the broker
 
 Make a copy of `example-broker-config.yaml` within the `broker` subdirectory, named `broker-config.yaml`, and edit it as needed. Then start the matchmaker as follows:
 

@@ -10,10 +10,10 @@ import io.grpc.stub.StreamObserver;
 /**
  * An Architect for generating instructions in Minecraft.
  *
- * Creating an object of a subclass of Architect should be cheap, because
+ * <p>Creating an object of a subclass of Architect should be cheap, because
  * it is done several times during the setup of the Architect Server that
  * contains it. Any substantial initialization effort should happen in the
- * {@link #initialize(WorldSelectMessage)} method.
+ * {@link #initialize(WorldSelectMessage)} method.</p>
  *
  */
 public interface Architect {
@@ -31,31 +31,25 @@ public interface Architect {
      * Spawn off a separate thread if you need to perform an expensive
      * computation, and then send any strings you like to the
      * responseObserver.
-     *
-     * @param request
-     * @param responseObserver
      */
-    public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver);
+    public void handleStatusInformation(StatusMessage request,
+                                        StreamObserver<TextMessage> responseObserver);
 
     /**
-     * Handles updates when a block is placed in the Minecraft world
-     * @param request
-     * @param responseObserver
+     * Handles updates when a block is placed in the Minecraft world.
      */
-    public void handleBlockPlaced(BlockPlacedMessage request, StreamObserver<TextMessage> responseObserver);
+    public void handleBlockPlaced(BlockPlacedMessage request,
+                                  StreamObserver<TextMessage> responseObserver);
 
     /**
-     * Handles updates when a block in the Minecraft world is destroyed
-     * @param request
-     * @param responseObserver
+     * Handles updates when a block in the Minecraft world is destroyed.
      */
-    public void handleBlockDestroyed(BlockDestroyedMessage request, StreamObserver<TextMessage> responseObserver);
+    public void handleBlockDestroyed(BlockDestroyedMessage request,
+                                     StreamObserver<TextMessage> responseObserver);
 
     /**
      * Returns a string which identifies this Architect. The string might
      * include the class name and version information.
-     *
-     * @return
      */
     public String getArchitectInformation();
 }

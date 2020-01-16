@@ -8,12 +8,11 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * A test client for the matchmaker. This is a mockup class that generates messages that would
@@ -24,126 +23,150 @@ import java.util.concurrent.TimeUnit;
  */
 public class TestClient {
 
-  private static Logger logger = LogManager.getLogger(TestClient.class);
-  private ManagedChannel channel;
-  private BrokerGrpc.BrokerBlockingStub blockingStub;
-  private BrokerGrpc.BrokerStub nonblockingStub;
+    private static Logger logger = LogManager.getLogger(TestClient.class);
+    private ManagedChannel channel;
+    private BrokerGrpc.BrokerBlockingStub blockingStub;
+    private BrokerGrpc.BrokerStub nonblockingStub;
 
-  /**
-   * Construct client connecting to HelloWorld server at {@code host:port}.
-   */
-  public TestClient(String host, int port) {
-    this(ManagedChannelBuilder.forAddress(host, port)
-        // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
-        // needing certificates.
-        .usePlaintext()
-        .build());
-  }
-
-  /**
-   * Construct client for accessing HelloWorld server using the existing channel.
-   */
-  TestClient(ManagedChannel channel) {
-    this.channel = channel;
-    blockingStub = BrokerGrpc.newBlockingStub(channel);
-    nonblockingStub = BrokerGrpc.newStub(channel);
-  }
-
-  public void shutdown() throws InterruptedException {
-    channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
-  }
-
-  /**
-   * Registers a game with the matchmaker. Returns a unique game ID for this game.
-   */
-  public int registerGame(String playerName) {
-    // TODO fill in PlayerLoginEvent#getAddress, Player#getDisplayName
-
-    String hostname = "localhost";
-    try {
-      hostname = InetAddress.getLocalHost().getHostName();
-    } catch (UnknownHostException e) {
+    /**
+     * Construct client connecting to HelloWorld server at {@code host:port}.
+     */
+    public TestClient(String host, int port) {
+        this(ManagedChannelBuilder.forAddress(host, port)
+            // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
+            // needing certificates.
+            .usePlaintext()
+            .build());
     }
 
-    GameData mGameInfo = GameData.newBuilder().setClientAddress(hostname).setPlayerName(playerName).build();
-
-    WorldSelectMessage mWorldSelect;
-    try {
-      mWorldSelect = blockingStub.startGame(mGameInfo);
-    } catch (StatusRuntimeException e) {
-      logger.error("RPC failed: " + e.getStatus());
-      return -1;
+    /**
+     * Construct client for accessing HelloWorld server using the existing channel.
+     */
+    TestClient(ManagedChannel channel) {
+        this.channel = channel;
+        blockingStub = BrokerGrpc.newBlockingStub(channel);
+        nonblockingStub = BrokerGrpc.newStub(channel);
     }
 
-    int ret = mWorldSelect.getGameId();
-    return ret;
-  }
-
-
-  public void finishGame(int gameId) {
-    GameId mGameId = GameId.newBuilder().setId(gameId).build();
-    blockingStub.endGame(mGameId);
-  }
-
-  /**
-   * Sends a status message for the given game ID to the matchmaker. Handles any text messages that
-   * the matchmaker sends back.
-   */
-  public void sendStatusMessage(int gameId, int x, int y, int z, double xDir, double yDir, double zDir) {
-    sendStatusMessage(gameId, x, y, z, xDir, yDir, zDir, new TextStreamObserver(gameId));
-  }
-
-  public void sendStatusMessage(int gameId, int x, int y, int z, double xDir, double yDir, double zDir, StreamObserver<TextMessage> observer) {
-    StatusMessage mStatus = StatusMessage.newBuilder().setGameId(gameId).setX(x).setY(y).setZ(z).setXDirection(xDir).setYDirection(yDir).setZDirection(zDir).build();
-    nonblockingStub.handleStatusInformation(mStatus, observer);
-  }
-
-  private static class TextStreamObserver implements StreamObserver<TextMessage> {
-    private int gameId;
-
-    public TextStreamObserver(int gameId) {
-      this.gameId = gameId;
+    public void shutdown() throws InterruptedException {
+        channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
-    @Override
-    public void onNext(TextMessage value) {
-      logger.info("got text message for gameid {}: {}", gameId, value);
-    }
+    /**
+     * Registers a game with the matchmaker. Returns a unique game ID for this game.
+     */
+    public int registerGame(String playerName) {
+        // TODO fill in PlayerLoginEvent#getAddress, Player#getDisplayName
 
-    @Override
-    public void onError(Throwable t) {
-      logger.error(t.toString());
-    }
-
-    @Override
-    public void onCompleted() {
-    }
-  }
-
-  public static void main(String[] args) throws InterruptedException {
-    TestClient client = new TestClient("localhost", 2802);
-    int gameId = 0;
-
-    try {
-      while (true) {
-        System.out.print("enter player name: ");
-        String gameData = System.console().readLine();
-
-        if (gameData == null) {
-          client.finishGame(gameId);
-          break;
-        } else if (gameData.startsWith(STATUS)) {
-          int id = Integer.parseInt(gameData.substring(STATUS.length() + 1));
-          client.sendStatusMessage(id, 1, 2, 3, 0.4, 0.0, -0.7);
-        } else {
-          gameId = client.registerGame(gameData);
-          logger.info("got game ID {}", gameId);
+        String hostname = "localhost";
+        try {
+            hostname = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            logger.error("could not determine address of localhost");
+            System.exit(1);
         }
-      }
-    } finally {
-      client.shutdown();
-    }
-  }
 
-  private static final String STATUS = "status";
+        GameData gameData = GameData.newBuilder()
+            .setClientAddress(hostname)
+            .setPlayerName(playerName)
+            .build();
+
+        WorldSelectMessage worldSelectMessage;
+        try {
+            worldSelectMessage = blockingStub.startGame(gameData);
+        } catch (StatusRuntimeException e) {
+            logger.error("RPC failed: " + e.getStatus());
+            return -1;
+        }
+        int gameId = worldSelectMessage.getGameId();
+        var scenario = worldSelectMessage.getName();
+        System.out.println("Game started for client " + gameId + " with scenario " + scenario);
+        return gameId;
+    }
+
+    public void finishGame(int gameId) {
+        GameId gameIdMessage = GameId.newBuilder().setId(gameId).build();
+        blockingStub.endGame(gameIdMessage);
+    }
+
+    /**
+     * Sends a status message for the given game ID to the matchmaker.
+     * Handles any text messages that the matchmaker sends back.
+     */
+    public void sendStatusMessage(int gameId, int x, int y, int z,
+                                  double xdir, double ydir, double zdir,
+                                  StreamObserver<TextMessage> streamObserver) {
+        StatusMessage message = StatusMessage
+            .newBuilder()
+            .setGameId(gameId)
+            .setX(x)
+            .setY(y)
+            .setZ(z)
+            .setXDirection(xdir)
+            .setYDirection(ydir)
+            .setZDirection(zdir)
+            .build();
+        nonblockingStub.handleStatusInformation(message, streamObserver);
+    }
+
+    private void sendStatusMessage(int gameId, int x, int y, int z,
+                                   double xdir, double ydir, double zdir) {
+        sendStatusMessage(gameId, x, y, z, xdir, ydir, zdir, new TextStreamObserver(gameId));
+    }
+
+
+    private static class TextStreamObserver implements StreamObserver<TextMessage> {
+        private int gameId;
+
+        public TextStreamObserver(int gameId) {
+            this.gameId = gameId;
+        }
+
+        @Override
+        public void onNext(TextMessage value) {
+            System.out.printf("got text message for gameid %d: %s\n", gameId, value);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            logger.error(t.toString());
+        }
+
+        @Override
+        public void onCompleted() {
+        }
+    }
+
+    /**
+     * Runs the TestClient with a promp to start new clients.
+     */
+    public static void main(String[] args) throws InterruptedException {
+        TestClient client = new TestClient("localhost", 2802);
+        int gameId = 0;
+        System.out.println("Interactive test console for starting test clients");
+        System.out.println("Enter a player name to start a new client");
+        System.out.println("Enter 'status XY' to send a status to the broker for client no XY.");
+        System.out.println("Ctrl-D exits the program.");
+        try {
+            while (true) {
+                System.out.print("enter player name: ");
+                String gameData = System.console().readLine();
+
+                if (gameData == null) {
+                    client.finishGame(gameId);
+                    break;
+                } else if (gameData.startsWith(STATUS)) {
+                    int id = Integer.parseInt(gameData.substring(STATUS.length() + 1));
+                    client.sendStatusMessage(id, 1, 2, 3, 0.4, 0.0, -0.7);
+                } else {
+                    gameId = client.registerGame(gameData);
+                    System.out.printf("got game ID %d\n", gameId);
+                }
+            }
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    private static final String STATUS = "status";
 }

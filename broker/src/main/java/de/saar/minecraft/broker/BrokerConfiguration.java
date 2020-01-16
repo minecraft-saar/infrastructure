@@ -1,17 +1,29 @@
 package de.saar.minecraft.broker;
 
-import org.yaml.snakeyaml.Yaml;
-
 import java.io.Reader;
+import java.util.ArrayList;
+import org.yaml.snakeyaml.TypeDescription;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
 
 public class BrokerConfiguration {
     private ArchitectServerAddress architectServer;
     private DatabaseAddress database;
     private int port;
     private int httpPort;
+    private ArrayList<String> scenarios = new ArrayList<>();
 
+    /**
+     * Generates a BrokerConfiguration from the yaml data provided by the reader.
+     */
     public static BrokerConfiguration loadYaml(Reader reader) {
-        Yaml yaml = new Yaml();
+        // prepare the YAML reader to read a list of strings
+        Constructor constructor = new Constructor(BrokerConfiguration.class);
+        TypeDescription brokerDesc = new TypeDescription(BrokerConfiguration.class);
+        brokerDesc.addPropertyParameters("scenarios", String.class);
+        constructor.addTypeDescription(brokerDesc);
+
+        Yaml yaml = new Yaml(constructor);
         BrokerConfiguration config = yaml.loadAs(reader, BrokerConfiguration.class);
         return config;
     }
@@ -46,6 +58,14 @@ public class BrokerConfiguration {
 
     public void setHttpPort(int httpPort) {
         this.httpPort = httpPort;
+    }
+
+    public ArrayList<String> getScenarios() {
+        return scenarios;
+    }
+
+    public void setScenarios(ArrayList<String> scenarios) {
+        this.scenarios = scenarios;
     }
 
     public static class DatabaseAddress {

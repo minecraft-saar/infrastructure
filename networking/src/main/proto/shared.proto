@@ -38,12 +38,14 @@ message BlockDestroyedMessage {
     int32 type = 5;
 }
 
+// the name is the scenario
 message WorldSelectMessage {
     int32 gameId = 1;
     string name = 2;
 }
 
-
+// for RPC calls that only need to identify which game is meant
+// e.g. endGame.
 message GameId {
     int32 id = 1;
 }

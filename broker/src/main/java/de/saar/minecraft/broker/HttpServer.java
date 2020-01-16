@@ -4,45 +4,48 @@ import au.com.codeka.carrot.CarrotEngine;
 import au.com.codeka.carrot.CarrotException;
 import au.com.codeka.carrot.Configuration;
 import au.com.codeka.carrot.bindings.MapBindings;
-import au.com.codeka.carrot.resource.FileResourceLocator;
 import au.com.codeka.carrot.resource.MemoryResourceLocator;
 import au.com.codeka.carrot.resource.ResourceLocator;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import de.saar.minecraft.broker.db.Tables;
-import de.saar.minecraft.broker.db.tables.Games;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.util.Util;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.jooq.Record;
-import org.jooq.Result;
-
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jooq.Result;
+
+
 
 public class HttpServer {
     private static Logger logger = LogManager.getLogger(HttpServer.class);
     private CarrotEngine engine;
     private Broker broker;
 
+    /**
+     * Starts the HTTP server, displaying information about the broker.
+     */
     public void start(Broker broker) throws IOException {
         int port = broker.getConfig().getHttpPort();
 
-        if( port == 0 ) {
+        if (port == 0) {
             throw new RuntimeException("No HTTP port specified in config file.");
         }
 
         this.broker = broker;
 
         // start HTTP server
-        com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress(port), 0);
+        var server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/", new MyHandler());
         server.setExecutor(null); // creates a default executor
         server.start();
@@ -76,50 +79,10 @@ public class HttpServer {
             int statusCode = HttpURLConnection.HTTP_OK;
             String path = t.getRequestURI().getPath();
 
-            if( "/".equals(path)) {
-                Map<String, Object> bindings = new TreeMap<>();
-                bindings.put("config", broker.getConfig());
-
-                Result<GamesRecord> latestGames = broker.getJooq().selectFrom(Tables.GAMES)
-                        .orderBy(Tables.GAMES.ID.desc())
-                        .limit(20)
-                        .fetch();
-
-                bindings.put("latest", latestGames);
-
-                try {
-                    response = engine.process("index.html", new MapBindings(bindings));
-                } catch (CarrotException e) {
-                    response = "An error occurred when expanding index.html: " + e.toString();
-                }
-            } else if( "/showgame.html".equals(path)) {
-                if( t.getRequestURI().getQuery() == null ) {
-                    response = "No game ID specified in HTTP query.";
-                } else {
-                    Map<String,String> params = queryToMap(t.getRequestURI().getQuery());
-                    if( ! params.containsKey("id")) {
-                        response = "No game ID specified in HTTP query.";
-                    } else {
-                        int gameid = Integer.parseInt(params.get("id"));
-                        GamesRecord game = broker.getJooq().selectFrom(Tables.GAMES).where(Tables.GAMES.ID.equal(gameid)).fetchOne();
-
-                        Result<GameLogsRecord> gameLog = broker.getJooq().selectFrom(Tables.GAME_LOGS)
-                                .where(Tables.GAME_LOGS.GAMEID.equal(gameid))
-                                .orderBy(Tables.GAME_LOGS.ID.asc())
-                                .fetch();
-
-                        Map<String, Object> bindings = new TreeMap<>();
-                        bindings.put("config", broker.getConfig());
-                        bindings.put("game", game);
-                        bindings.put("log", gameLog);
-
-                        try {
-                            response = engine.process("showgame.html", new MapBindings(bindings));
-                        } catch (CarrotException e) {
-                            response = "An error occurred when expanding showgame.html: " + e.toString();
-                        }
-                    }
-                }
+            if ("/".equals(path)) {
+                response = createOverviewResponse();
+            } else if ("/showgame.html".equals(path)) {
+                response = createGameResponse(t);
             } else {
                 // undefined URL
                 response = "404 (not found)";
@@ -132,6 +95,67 @@ public class HttpServer {
             os.write(response.getBytes());
             os.close();
         }
+
+        private String createOverviewResponse() {
+            Map<String, Object> bindings = new TreeMap<>();
+            bindings.put("config", broker.getConfig());
+            try {
+                Result<GamesRecord> latestGames = broker.getJooq().selectFrom(Tables.GAMES)
+                    .orderBy(Tables.GAMES.ID.desc())
+                    .limit(20)
+                    .fetch();
+
+                bindings.put("latest", latestGames);
+            } catch (Exception e) {
+                var error = "Could not fetch latest games.  Is the DB schema up to date?\n"
+                    + e.toString();
+                logger.error(error);
+                return error;
+            }
+
+            try {
+                return engine.process("index.html", new MapBindings(bindings));
+            } catch (CarrotException e) {
+                return "An error occurred when expanding index.html: " + e.toString();
+            }
+        }
+
+        private String createGameResponse(HttpExchange t) {
+            String response;
+            if (t.getRequestURI().getQuery() == null) {
+                response = "No game ID specified in HTTP query.";
+            } else {
+                Map<String,String> params = queryToMap(t.getRequestURI().getQuery());
+                if (! params.containsKey("id")) {
+                    response = "No game ID specified in HTTP query.";
+                } else {
+                    int gameid = Integer.parseInt(params.get("id"));
+                    GamesRecord game = broker.getJooq()
+                        .selectFrom(Tables.GAMES)
+                        .where(Tables.GAMES.ID.equal(gameid))
+                        .fetchOne();
+
+                    Result<GameLogsRecord> gameLog = broker.getJooq()
+                        .selectFrom(Tables.GAME_LOGS)
+                        .where(Tables.GAME_LOGS.GAMEID.equal(gameid))
+                        .orderBy(Tables.GAME_LOGS.ID.asc())
+                        .fetch();
+
+                    Map<String, Object> bindings = new TreeMap<>();
+                    bindings.put("config", broker.getConfig());
+                    bindings.put("game", game);
+                    bindings.put("log", gameLog);
+
+                    try {
+                        response = engine.process("showgame.html", new MapBindings(bindings));
+                    } catch (CarrotException e) {
+                        response = "An error occurred when expanding showgame.html: "
+                            + e.toString();
+                    }
+                }
+            }
+            return response;
+        }
     }
 
     private static Map<String, String> queryToMap(String query) {
@@ -140,7 +164,7 @@ public class HttpServer {
             String[] entry = param.split("=");
             if (entry.length > 1) {
                 result.put(entry[0], entry[1]);
-            }else{
+            } else {
                 result.put(entry[0], "");
             }
         }

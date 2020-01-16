@@ -43,6 +43,7 @@ allprojects {
 }
 
 subprojects {
+    apply plugin: 'checkstyle'
     apply plugin: "maven-publish"
     apply plugin: "java"
     apply plugin: 'com.github.johnrengelman.shadow'
@@ -89,9 +90,20 @@ subprojects {
     }
     
     spotbugs {
-        toolVersion = '4.0.0-beta3'
-        ignoreFailures = true
+        toolVersion = '4.0.0-beta4'
+        ignoreFailures = false
     }
+
+    checkstyle {
+        toolVersion = "8.28"
+    }
+    checkstyleMain {
+        source ='src/main/java'
+    }
+    checkstyleTest {
+        source ='src/test/java'
+    }
+
     tasks.withType(com.github.spotbugs.SpotBugsTask) {
         reports {
             xml.enabled = false

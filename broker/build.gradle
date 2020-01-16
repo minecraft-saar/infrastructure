@@ -8,10 +8,10 @@ dependencies {
     compile project(path: ':networking')
 
     // database stuff
-    implementation "org.jooq:jooq:3.11.12"
-    implementation "org.jooq:jooq-meta:3.11.12"
-    jooqRuntime "org.jooq:jooq-meta-extensions:3.11.12"
-    implementation "org.jooq:jooq-codegen:3.11.12"
+    implementation "org.jooq:jooq:3.12.3"
+    implementation "org.jooq:jooq-meta:3.12.3"
+    jooqRuntime "org.jooq:jooq-meta-extensions:3.12.3"
+    implementation "org.jooq:jooq-codegen:3.12.3"
     implementation "mysql:mysql-connector-java:5.1.6"
     
     jooqRuntime "mysql:mysql-connector-java:5.1.6"
@@ -36,7 +36,7 @@ mainClassName = "de.saar.minecraft.broker.Broker"
 
 
 jooq {
-    version = '3.11.12'
+    version = '3.12.3'
     edition = 'OSS'
   
     minecraft(sourceSets.main) {
@@ -47,11 +47,10 @@ jooq {
             }
             database {
                 name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
-
-                // make sure that we use the schema MINECRAFT in the generated code
-                inputSchema = 'PUBLIC'
-                outputSchema = 'MINECRAFT'
-                
+                inputSchema = "MINECRAFT"
+                // instruct jooq to use the top level package
+                // instead of a 'minecraft' package for the generated code:
+                outputSchemaToDefault = true
                 properties {
                     property {
                         key = 'scripts'
@@ -61,14 +60,6 @@ jooq {
                         key = 'sort'
                         value = 'semantic'
                     }
-
-                    // doesn't work yet in jOOQ 3.11
-                    /*
-                    property {
-                        key = 'defaultNameCase'
-                        value = 'as_is'
-                    }
-                    */
                 }
                 forcedTypes {
                     forcedType {

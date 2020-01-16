@@ -7,9 +7,6 @@ import java.io.Reader;
 public class Util {
     /**
      * Reads the entire Reader into a string and returns it.
-     *
-     * @param reader
-     * @return
      */
     public static String slurp(Reader reader) {
         try {
@@ -22,7 +19,7 @@ public class Util {
             reader.close();
 
             return buffer.toString();
-        } catch(IOException e) {
+        } catch (IOException e) {
             return null;
         }
     }

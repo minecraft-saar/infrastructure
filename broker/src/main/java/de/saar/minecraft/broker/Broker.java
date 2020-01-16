@@ -22,21 +22,30 @@ import de.saar.minecraft.shared.WorldSelectMessage;
 import de.saar.minecraft.util.Util;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
-import io.grpc.*;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.util.List;
+import java.util.Random;
+import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.sql.*;
-import java.util.List;
-import java.util.Random;
-import java.util.stream.Collectors;
+
 
 public class Broker {
     private static Logger logger = LogManager.getLogger(Broker.class);
@@ -48,7 +57,6 @@ public class Broker {
 
     private ArchitectGrpc.ArchitectStub nonblockingArchitectStub;
     private ArchitectGrpc.ArchitectBlockingStub blockingArchitectStub;
-    private ManagedChannel channelToArchitect;
     private ArchitectInformation architectInfo;
 
     private final BrokerConfiguration config;
@@ -56,11 +64,15 @@ public class Broker {
     private Connection conn = null;
 
     private final TextFormat.Printer pr = TextFormat.printer();
-    private List<String> objectives;
+    private List<String> scenarios;
 
+    /**
+     * Builds a new broker from a given configuration.
+     * You usually only want one broker object in your system.
+     */
     public Broker(BrokerConfiguration config) {
         logger.trace("Broker initialization");
-        initObjectives();
+        initScenarios(config.getScenarios());
         this.config = config;
         jooq = setupDatabase();
 
@@ -71,8 +83,7 @@ public class Broker {
             try {
                 new HttpServer().start(this);
             } catch (IOException e) {
-                logger.warn("Could not open HTTP server, will run without it.");
-                e.printStackTrace();
+                logger.warn("Could not open HTTP server (port in use?), will run without it.");
             }
         }
     }
@@ -85,14 +96,22 @@ public class Broker {
         return config;
     }
 
-
+    /**
+     * Starts the broker and tries to connect to the architect. Will exit
+     * the program if no architect is available.
+     * @throws IOException in case the broker grpc service cannot be started
+     */
     public void start() throws IOException {
         // connect to architect server
-        channelToArchitect = ManagedChannelBuilder.forAddress(config.getArchitectServer().getHostname(), config.getArchitectServer().getPort())
-                // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
-                // needing certificates.
-                .usePlaintext()
-                .build();
+        // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
+        // needing certificates.
+        ManagedChannel channelToArchitect = ManagedChannelBuilder
+            .forAddress(config.getArchitectServer().getHostname(),
+                config.getArchitectServer().getPort())
+            // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
+            // needing certificates.
+            .usePlaintext()
+            .build();
         nonblockingArchitectStub = ArchitectGrpc.newStub(channelToArchitect);
         blockingArchitectStub = ArchitectGrpc.newBlockingStub(channelToArchitect);
 
@@ -100,9 +119,9 @@ public class Broker {
         try {
             architectInfo = blockingArchitectStub.hello(Void.newBuilder().build());
         } catch (StatusRuntimeException e) {
-            logger.error("Failed to connect to architect server at " +
-                         config.getArchitectServer() + "\n" +
-                         e.getCause().getMessage());
+            logger.error("Failed to connect to architect server at "
+                         + config.getArchitectServer() + "\n"
+                         + e.getCause().getMessage());
             System.exit(1);
         }
 
@@ -125,6 +144,9 @@ public class Broker {
         logger.info("Broker service running.");
     }
 
+    /**
+     * Performs a shutdown of the underlying grpc server.
+     */
     public void stop() {
         if (server != null) {
             server.shutdown();
@@ -145,17 +167,18 @@ public class Broker {
         /**
          * Handles the start of a game. Creates a record for this game in the database
          * and returns a unique game ID to the client.
-         *
-         * @param request
-         * @param responseObserver
          */
         @Override
-        public void startGame(GameData request, StreamObserver<WorldSelectMessage> responseObserver) {
+        public void startGame(GameData request,
+                              StreamObserver<WorldSelectMessage> responseObserver) {
             Stopwatch sw = Stopwatch.createStarted();
+
+            var scenario = selectScenario();
 
             GamesRecord rec = jooq.newRecord(Tables.GAMES);
             rec.setClientIp(request.getClientAddress());
             rec.setPlayerName(request.getPlayerName());
+            rec.setScenario(scenario);
             rec.setStartTime(now());
             rec.store();
 
@@ -163,10 +186,13 @@ public class Broker {
             setGameStatus(id, GameStatus.Created);
 
             // Select new game
-            WorldSelectMessage mWorld = WorldSelectMessage.newBuilder().setGameId(id).setName("bridge").build();
-            // TODO: actually select instead of hardcoded 'bridge'
+            WorldSelectMessage worldSelectMessage = WorldSelectMessage
+                .newBuilder()
+                .setGameId(id)
+                .setName(scenario)
+                .build();
             // tell architect about the new game
-            Void x = blockingArchitectStub.startGame(mWorld);
+            Void x = blockingArchitectStub.startGame(worldSelectMessage);
 
             rec.setArchitectHostname(config.getArchitectServer().getHostname());
             rec.setArchitectPort(config.getArchitectServer().getPort());
@@ -174,7 +200,7 @@ public class Broker {
             rec.store();
 
             // tell client the game ID and selected world
-            responseObserver.onNext(mWorld);
+            responseObserver.onNext(worldSelectMessage);
             responseObserver.onCompleted();
 
             setGameStatus(id, GameStatus.Running);
@@ -193,32 +219,42 @@ public class Broker {
 
         /**
          * Handles a status update from the Minecraft server. Optionally, sends back a TextMessage
-         * with a string that is to be displayed to the user. Because calculating this text message
-         * may take a long time, this method should be called asynchronously (with a non-blocking stub).
-         *
-         * @param request
-         * @param responseObserver
+         * with a string that is to be displayed to the user. As calculating this text message may
+         * take a long time, this method should be called asynchronously (with a non-blocking stub).
          */
         @Override
-        public void handleStatusInformation(StatusMessage request, StreamObserver<TextMessage> responseObserver) {
+        public void handleStatusInformation(StatusMessage request,
+                                            StreamObserver<TextMessage> responseObserver) {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
-            nonblockingArchitectStub.handleStatusInformation(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
+            nonblockingArchitectStub.handleStatusInformation(
+                request,
+                new DelegatingStreamObserver<>(request.getGameId(), responseObserver)
+            );
         }
 
         @Override
-        public void handleBlockPlaced(BlockPlacedMessage request, StreamObserver<TextMessage> responseObserver) {
+        public void handleBlockPlaced(BlockPlacedMessage request,
+                                      StreamObserver<TextMessage> responseObserver) {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
-            nonblockingArchitectStub.handleBlockPlaced(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
+            nonblockingArchitectStub.handleBlockPlaced(
+                request,
+                new DelegatingStreamObserver<>(request.getGameId(), responseObserver)
+            );
         }
 
         @Override
-        public void handleBlockDestroyed(BlockDestroyedMessage request, StreamObserver<TextMessage> responseObserver) {
+        public void handleBlockDestroyed(BlockDestroyedMessage request,
+                                         StreamObserver<TextMessage> responseObserver) {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
-            nonblockingArchitectStub.handleBlockDestroyed(request, new DelegatingStreamObserver<>(request.getGameId(), responseObserver));
+            nonblockingArchitectStub.handleBlockDestroyed(
+                request,
+                new DelegatingStreamObserver<>(request.getGameId(), responseObserver)
+            );
         }
 
         @Override
-        public void handleMinecraftServerError(MinecraftServerError request, StreamObserver<Void> responseObserver) {
+        public void handleMinecraftServerError(MinecraftServerError request,
+                                               StreamObserver<Void> responseObserver) {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error (restart?, shutdown with error message?)
 
@@ -228,7 +264,8 @@ public class Broker {
         }
 
         @Override
-        public void handleWorldFileError(WorldFileError request, StreamObserver<Void> responseObserver) {
+        public void handleWorldFileError(WorldFileError request,
+                                         StreamObserver<Void> responseObserver) {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error
 
@@ -241,7 +278,10 @@ public class Broker {
 
     private void setGameStatus(int gameid, GameStatus status) {
         // update status in games table
-        jooq.update(Tables.GAMES).set(Tables.GAMES.STATUS, status).where(Tables.GAMES.ID.equal(gameid)).execute();
+        jooq.update(Tables.GAMES)
+            .set(Tables.GAMES.STATUS, status)
+            .where(Tables.GAMES.ID.equal(gameid))
+            .execute();
 
         // record updating of status in game_logs table
         GameLogsRecord glr = jooq.newRecord(Tables.GAME_LOGS);
@@ -254,28 +294,55 @@ public class Broker {
     }
 
     /**
-     * Finds all resources that define objectives.
+     * Initializes the scenarios by finding all resources that define scenarios and
+     * intersecting them with the scenarios defined in the configuration.
      */
-    private void initObjectives() {
+    private void initScenarios(List<String> confScenarios) {
+        List<String> scenariosInResources = null;
         try (ScanResult scanResult = new ClassGraph()
             .whitelistPaths("de/saar/minecraft/worlds")
             .scan()) {
-            objectives = scanResult.getAllResources()
+            scenariosInResources = scanResult.getAllResources()
                 .filter(x -> x.getURL().getFile().endsWith(".csv"))
                 .getPaths()
-                .stream().map(x -> x.substring(x.lastIndexOf("/") + 1, x.length() - 4))
+                .stream()
+                .map(x -> x.substring(x.lastIndexOf("/") + 1, x.length() - 4))
                 .collect(Collectors.toList());
+        } catch (Exception exception) {
+            logger.warn("Could not read scenarios from resources, not performing sanity checks.");
         }
-        logger.info("Found these objectives: {}", String.join(" ", objectives));
+        // sanity check configuration
+        if (scenariosInResources != null
+            && ! scenariosInResources.containsAll(confScenarios)) {
+            String wrongScenarios = confScenarios.stream()
+                .filter(scenariosInResources::contains)
+                .collect(Collectors.joining(" "));
+            logger.error("You defined a scenario in the configuration that is "
+                    + "not present in the resources: "
+                    + wrongScenarios
+            );
+            throw(new RuntimeException("Wrong scenario defined"));
+        }
+        if (confScenarios.isEmpty()) {
+            logger.warn("No scenarios defined in the broker configuration.  Will use all of them");
+            if (scenariosInResources == null) {
+                logger.error("No scenarios defined and resources not readable, aborting");
+                throw new RuntimeException("Could not determine scenarios");
+            }
+            scenarios = scenariosInResources;
+        } else {
+            scenarios = confScenarios;
+        }
+        logger.info("Using these scenarios: {}", String.join(" ", scenarios));
     }
 
     /**
-     * Selects an objective for the next game.
+     * Selects a scenario for the next game.
      */
-    private String selectObjective() {
-        var num = objectives.size();
+    private String selectScenario() {
+        var num = scenarios.size();
         var selected = new Random().nextInt(num);
-        return objectives.get(selected);
+        return scenarios.get(selected);
     }
     
     private static class DummyStreamObserver<E> implements StreamObserver<E> {
@@ -295,7 +362,8 @@ public class Broker {
         }
     }
 
-    private class DelegatingStreamObserver<E extends MessageOrBuilder> implements StreamObserver<E> {
+    private class DelegatingStreamObserver<E extends MessageOrBuilder>
+                                          implements StreamObserver<E> {
         private StreamObserver<E> toClient;
         private int gameId;
 
@@ -322,6 +390,10 @@ public class Broker {
         }
     }
 
+    private static Timestamp now() {
+        return new Timestamp(System.currentTimeMillis());
+    }
+
     private void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
         String messageStr = pr.printToString(message);
 
@@ -332,10 +404,6 @@ public class Broker {
         rec.setMessage(messageStr);
         rec.setTimestamp(now());
         rec.store();
-    }
-
-    private static Timestamp now() {
-        return new Timestamp(System.currentTimeMillis());
     }
 
     private void log(int gameid, Throwable message, GameLogsDirection direction) {
@@ -350,8 +418,13 @@ public class Broker {
         rec.store();
     }
 
+    /**
+     * runs the broker, ignores all arguments.
+     */
     public static void main(String[] args) throws IOException, InterruptedException {
-        BrokerConfiguration config = BrokerConfiguration.loadYaml(new FileReader("broker-config.yaml"));
+        BrokerConfiguration config = BrokerConfiguration.loadYaml(
+            new FileReader("broker-config.yaml")
+        );
 
         Broker server = new Broker(config);
         server.start();
@@ -362,8 +435,15 @@ public class Broker {
     private DSLContext setupDatabase() {
         if (config.getDatabase() != null) {
             try {
-                conn = DriverManager.getConnection(config.getDatabase().getUrl(), config.getDatabase().getUsername(), config.getDatabase().getPassword());
-                DSLContext ret = DSL.using(conn, SQLDialect.valueOf(config.getDatabase().getSqlDialect()));
+                conn = DriverManager.getConnection(
+                    config.getDatabase().getUrl(),
+                    config.getDatabase().getUsername(),
+                    config.getDatabase().getPassword()
+                );
+                DSLContext ret = DSL.using(
+                    conn,
+                    SQLDialect.valueOf(config.getDatabase().getSqlDialect())
+                );
                 logger.info("Connected to {} database at {}.",
                             config.getDatabase().getSqlDialect(),
                             config.getDatabase().getUrl());
@@ -383,18 +463,20 @@ public class Broker {
         }
 
         try {
-            String url = "jdbc:h2:mem:minecraft;DB_CLOSE_DELAY=-1";
+            String url = "jdbc:h2:mem:MINECRAFT;DB_CLOSE_DELAY=-1";
 
-            // Capitalization in H2 is finicky. By default, H2 converts all unquoted names to uppercase,
-            // and is case-sensitive. Here we allow this default, to fit with the all-uppercase names
-            // that the jOOQ Gradle plugin generates; there it secretly uses a H2 database which can't
-            // be configured so easily. MySQL doesn't care about case, and can live with the uppercased
-            // names.
-            //
-            // If we ever choose to go back to the original, un-uppercased names, we can achieve
-            // this here by adding the following string to the JDBC URL: ";DATABASE_TO_UPPER=FALSE"
+            /*
+             Capitalization in H2 is finicky. H2 converts unquoted names to uppercase by default,
+             and is case-sensitive. Here we allow this default, to fit with the all-uppercase names
+             that the jOOQ Gradle plugin generates; there it secretly uses a H2 database which can't
+             be configured so easily. MySQL doesn't care about case, and can live with the
+             uppercased names.
 
-            // create db configuration (for display on website)
+             If we ever choose to go back to the original, un-uppercased names, we can achieve
+             this here by adding the following string to the JDBC URL: ";DATABASE_TO_UPPER=FALSE"
+             create db configuration (for display on website)
+            */
+
             BrokerConfiguration.DatabaseAddress db = new BrokerConfiguration.DatabaseAddress();
             db.setUrl(url);
             db.setSqlDialect("H2");
@@ -405,11 +487,14 @@ public class Broker {
             // create schema "minecraft" and activate it
             conn = DriverManager.getConnection(url, "", "");
             Statement stmt = conn.createStatement();
-            stmt.executeUpdate("create schema if not exists MINECRAFT;"); // note the uppercased schema name
+            // note the uppercased schema name
+            stmt.executeUpdate("create schema if not exists MINECRAFT;");
             conn.setSchema("MINECRAFT");
 
             // create tables
-            String createTablesStr = Util.slurp(new InputStreamReader(getClass().getResourceAsStream("/database.sql")));
+            String createTablesStr = Util.slurp(
+                new InputStreamReader(getClass().getResourceAsStream("/database.sql"))
+            );
             stmt.executeUpdate(createTablesStr);
         } catch (SQLException e) {
             e.printStackTrace();
