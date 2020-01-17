@@ -41,10 +41,13 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.flywaydb.core.Flyway;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
+import org.jooq.conf.RenderMapping;
+import org.jooq.conf.Settings;
 import org.jooq.impl.DSL;
-
+import org.jooq.meta.derby.sys.Sys;
 
 
 public class Broker {
@@ -433,75 +436,53 @@ public class Broker {
 
 
     private DSLContext setupDatabase() {
-        if (config.getDatabase() != null) {
+        // special case:  If no database was configured at all, use an in-memory db (for testing)
+        if (config.getDatabase() == null) {
+            logger.warn("no database configured, will use in-memory database");
             try {
-                conn = DriverManager.getConnection(
-                    config.getDatabase().getUrl(),
-                    config.getDatabase().getUsername(),
-                    config.getDatabase().getPassword()
-                );
-                DSLContext ret = DSL.using(
-                    conn,
-                    SQLDialect.valueOf(config.getDatabase().getSqlDialect())
-                );
-                logger.info("Connected to {} database at {}.",
-                            config.getDatabase().getSqlDialect(),
-                            config.getDatabase().getUrl());
-                return ret;
-            } catch (SQLException e) {
+                Class.forName("org.h2.Driver");
+            } catch (ClassNotFoundException e) {
+                logger.error("No h2 class found, aborting.");
                 e.printStackTrace();
+                System.exit(1);
             }
-        }
-
-        logger.warn("Could not connect to database; setting up temporary in-memory database.");
-
-        try {
-            Class.forName("org.h2.Driver");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
-
-        try {
             String url = "jdbc:h2:mem:MINECRAFT;DB_CLOSE_DELAY=-1";
-
-            /*
-             Capitalization in H2 is finicky. H2 converts unquoted names to uppercase by default,
-             and is case-sensitive. Here we allow this default, to fit with the all-uppercase names
-             that the jOOQ Gradle plugin generates; there it secretly uses a H2 database which can't
-             be configured so easily. MySQL doesn't care about case, and can live with the
-             uppercased names.
-
-             If we ever choose to go back to the original, un-uppercased names, we can achieve
-             this here by adding the following string to the JDBC URL: ";DATABASE_TO_UPPER=FALSE"
-             create db configuration (for display on website)
-            */
-
             BrokerConfiguration.DatabaseAddress db = new BrokerConfiguration.DatabaseAddress();
             db.setUrl(url);
             db.setSqlDialect("H2");
             db.setUsername("");
             db.setPassword("");
             config.setDatabase(db);
-
-            // create schema "minecraft" and activate it
-            conn = DriverManager.getConnection(url, "", "");
-            Statement stmt = conn.createStatement();
-            // note the uppercased schema name
-            stmt.executeUpdate("create schema if not exists MINECRAFT;");
-            conn.setSchema("MINECRAFT");
-
-            // create tables
-            String createTablesStr = Util.slurp(
-                new InputStreamReader(getClass().getResourceAsStream("/database.sql"))
-            );
-            stmt.executeUpdate(createTablesStr);
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.exit(1);
         }
 
-        DSLContext ret = DSL.using(conn, SQLDialect.H2);
-        return ret;
+        try {
+            var url = config.getDatabase().getUrl();
+            var user = config.getDatabase().getUsername();
+            var password = config.getDatabase().getPassword();
+            // First, migrate to newest version
+            Flyway flyway = Flyway.configure()
+                .dataSource(url, user, password)
+                .schemas("MINECRAFT")
+                .defaultSchema("MINECRAFT")
+                .load();
+            flyway.migrate();
+            flyway.migrate();
+            // second, connect to database
+            conn = DriverManager.getConnection(url, user, password);
+            DSLContext ret = DSL.using(
+                conn,
+                SQLDialect.valueOf(config.getDatabase().getSqlDialect())
+            );
+            logger.info("Connected to {} database at {}.",
+                config.getDatabase().getSqlDialect(),
+                config.getDatabase().getUrl());
+            return ret;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        logger.error("Could not connect to database, exiting");
+        System.exit(1);
+        return null;
     }
+
 }

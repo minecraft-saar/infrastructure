@@ -13,7 +13,8 @@ dependencies {
     jooqRuntime "org.jooq:jooq-meta-extensions:3.12.3"
     implementation "org.jooq:jooq-codegen:3.12.3"
     implementation "mysql:mysql-connector-java:5.1.6"
-    
+    implementation "org.flywaydb:flyway-core:6.1.4"
+
     jooqRuntime "mysql:mysql-connector-java:5.1.6"
     
     implementation 'org.apache.commons:commons-collections4:4.4'
@@ -48,17 +49,14 @@ jooq {
             database {
                 name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
                 inputSchema = "MINECRAFT"
-                // instruct jooq to use the top level package
-                // instead of a 'minecraft' package for the generated code:
-                outputSchemaToDefault = true
                 properties {
                     property {
                         key = 'scripts'
-                        value = 'src/main/resources/database.sql'
+                        value = 'src/main/resources/db/migration/*.sql'
                     }
                     property {
                         key = 'sort'
-                        value = 'semantic'
+                        value = 'flyway'
                     }
                 }
                 forcedTypes {
