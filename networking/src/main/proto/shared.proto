@@ -7,6 +7,9 @@ option java_outer_classname = "SharedProto";
 package minecraft;
 
 
+// position of the player in the specified game
+// x,y,z are the coordinates location where the player is standing
+// x-, y-, zDirection is a unit-vector that points into the direction the player is facing
 message StatusMessage {
     int32 gameId = 1;
     int32 x = 2;
@@ -22,6 +25,7 @@ message TextMessage {
     string text = 2;
 }
 
+// type is the block material as listed in org.bukkit.Material
 message BlockPlacedMessage {
     int32 gameId = 1;
     int32 x = 2;
@@ -30,6 +34,7 @@ message BlockPlacedMessage {
     int32 type = 5;
 }
 
+// type is the block material as listed in org.bukkit.Material
 message BlockDestroyedMessage {
     int32 gameId = 1;
     int32 x = 2;
@@ -59,7 +64,6 @@ message WorldFileError {
     int32 gameId = 1;
     string message = 2;
 }
-
 
 message Void {
 
