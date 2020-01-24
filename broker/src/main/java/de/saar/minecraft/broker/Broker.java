@@ -4,6 +4,7 @@ import com.google.common.base.Stopwatch;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
+import de.saar.minecraft.architect.ArchitectGrpc.ArchitectBlockingStub;
 import de.saar.minecraft.architect.ArchitectInformation;
 import de.saar.minecraft.broker.db.GameLogsDirection;
 import de.saar.minecraft.broker.db.GameStatus;
@@ -19,7 +20,6 @@ import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.Void;
 import de.saar.minecraft.shared.WorldFileError;
 import de.saar.minecraft.shared.WorldSelectMessage;
-import de.saar.minecraft.util.Util;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 import io.grpc.ManagedChannel;
@@ -30,12 +30,12 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -44,27 +44,35 @@ import org.apache.logging.log4j.Logger;
 import org.flywaydb.core.Flyway;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
-import org.jooq.conf.RenderMapping;
-import org.jooq.conf.Settings;
 import org.jooq.impl.DSL;
-import org.jooq.meta.derby.sys.Sys;
 
 
+/**
+ * A broker is a singleton object organizing experiments.
+ * It holds a connection to all architects as well and decides
+ * which experiment to run when a new user enters the Minecraft server.
+ */
 public class Broker {
     private static Logger logger = LogManager.getLogger(Broker.class);
     private static final String MESSAGE_TYPE_ERROR = "ERROR";
     private static final String MESSAGE_TYPE_LOG = "LOG";
 
     private Server server;
-    private static int nextGameId = 1;
 
-    private ArchitectGrpc.ArchitectStub nonblockingArchitectStub;
-    private ArchitectGrpc.ArchitectBlockingStub blockingArchitectStub;
-    private ArchitectInformation architectInfo;
+    private List<ArchitectConnection> architectConnections = new ArrayList<>();
+
+    private HashMap<Integer, ArchitectConnection> runningGames = new HashMap<>();
+
+    private static class ArchitectConnection {
+        public ArchitectGrpc.ArchitectStub nonblockingArchitectStub;
+        public ArchitectGrpc.ArchitectBlockingStub blockingArchitectStub;
+        public ArchitectInformation architectInfo;
+        public String host;
+        public int port;
+    }
 
     private final BrokerConfiguration config;
-    private DSLContext jooq = null;
-    private Connection conn = null;
+    private DSLContext jooq;
 
     private final TextFormat.Printer pr = TextFormat.printer();
     private List<String> scenarios;
@@ -105,44 +113,41 @@ public class Broker {
      * @throws IOException in case the broker grpc service cannot be started
      */
     public void start() throws IOException {
-        // connect to architect server
-        // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
-        // needing certificates.
-        ManagedChannel channelToArchitect = ManagedChannelBuilder
-            .forAddress(config.getArchitectServer().getHostname(),
-                config.getArchitectServer().getPort())
-            // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
-            // needing certificates.
-            .usePlaintext()
-            .build();
-        nonblockingArchitectStub = ArchitectGrpc.newStub(channelToArchitect);
-        blockingArchitectStub = ArchitectGrpc.newBlockingStub(channelToArchitect);
-
-        // check connection to Architect server and get architectInfo string
-        try {
-            architectInfo = blockingArchitectStub.hello(Void.newBuilder().build());
-        } catch (StatusRuntimeException e) {
-            logger.error("Failed to connect to architect server at "
-                         + config.getArchitectServer() + "\n"
-                         + e.getCause().getMessage());
-            System.exit(1);
+        // First, connect to all architects.
+        for (var asa: config.getArchitectServers()) {
+            var archConn = new ArchitectConnection();
+            ManagedChannel channelToArchitect = ManagedChannelBuilder
+                .forAddress(asa.getHostname(),
+                    asa.getPort())
+                // Channels are secure by default (via SSL/TLS).
+                // we disable TLS to avoid needing certificates.
+                .usePlaintext()
+                .build();
+            archConn.host = asa.getHostname();
+            archConn.port = asa.getPort();
+            archConn.nonblockingArchitectStub = ArchitectGrpc.newStub(channelToArchitect);
+            archConn.blockingArchitectStub = ArchitectGrpc.newBlockingStub(channelToArchitect);
+            // check connection to Architect server and get architectInfo string
+            try {
+                archConn.architectInfo = archConn.blockingArchitectStub.hello(
+                    Void.newBuilder().build());
+            } catch (StatusRuntimeException e) {
+                logger.error("Failed to connect to architect server at "
+                    + asa + "\n"
+                    + e.getCause().getMessage());
+                System.exit(1);
+            }
+            logger.info("Connected to architect server at " + asa);
+            this.architectConnections.add(archConn);
         }
 
-        logger.info("Connected to architect server at " + config.getArchitectServer());
-
-        // open Broker service
+        // Second open Broker service.
         int port = config.getPort();
         server = ServerBuilder.forPort(port)
                 .addService(new BrokerImpl())
                 .build()
                 .start();
-
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                Broker.this.stop();
-            }
-        });
+        Runtime.getRuntime().addShutdownHook(new Thread(Broker.this::stop));
 
         logger.info("Broker service running.");
     }
@@ -174,8 +179,6 @@ public class Broker {
         @Override
         public void startGame(GameData request,
                               StreamObserver<WorldSelectMessage> responseObserver) {
-            Stopwatch sw = Stopwatch.createStarted();
-
             var scenario = selectScenario();
 
             GamesRecord rec = jooq.newRecord(Tables.GAMES);
@@ -188,6 +191,9 @@ public class Broker {
             int id = rec.getId();
             setGameStatus(id, GameStatus.Created);
 
+            var architect = selectArchitect();
+            runningGames.put(id, architect);
+
             // Select new game
             WorldSelectMessage worldSelectMessage = WorldSelectMessage
                 .newBuilder()
@@ -195,11 +201,11 @@ public class Broker {
                 .setName(scenario)
                 .build();
             // tell architect about the new game
-            Void x = blockingArchitectStub.startGame(worldSelectMessage);
+            Void x = architect.blockingArchitectStub.startGame(worldSelectMessage);
 
-            rec.setArchitectHostname(config.getArchitectServer().getHostname());
-            rec.setArchitectPort(config.getArchitectServer().getPort());
-            rec.setArchitectInfo(architectInfo.getInfo());
+            rec.setArchitectHostname(architect.host);
+            rec.setArchitectPort(architect.port);
+            rec.setArchitectInfo(architect.architectInfo.getInfo());
             rec.store();
 
             // tell client the game ID and selected world
@@ -211,13 +217,14 @@ public class Broker {
 
         @Override
         public void endGame(GameId request, StreamObserver<Void> responseObserver) {
-            log(request.getId(), request, GameLogsDirection.PassToArchitect);
-            Void v = blockingArchitectStub.endGame(request);
+            int id = request.getId();
+            log(id, request, GameLogsDirection.PassToArchitect);
+            Void v = getBlockingArchitect(id).endGame(request);
 
             responseObserver.onNext(v);
             responseObserver.onCompleted();
 
-            setGameStatus(request.getId(), GameStatus.Finished);
+            setGameStatus(id, GameStatus.Finished);
         }
 
         /**
@@ -228,30 +235,33 @@ public class Broker {
         @Override
         public void handleStatusInformation(StatusMessage request,
                                             StreamObserver<TextMessage> responseObserver) {
-            log(request.getGameId(), request, GameLogsDirection.FromClient);
-            nonblockingArchitectStub.handleStatusInformation(
+            int id = request.getGameId();
+            log(id, request, GameLogsDirection.FromClient);
+            getNonblockingArchitect(id).handleStatusInformation(
                 request,
-                new DelegatingStreamObserver<>(request.getGameId(), responseObserver)
+                new DelegatingStreamObserver<>(id, responseObserver)
             );
         }
 
         @Override
         public void handleBlockPlaced(BlockPlacedMessage request,
                                       StreamObserver<TextMessage> responseObserver) {
-            log(request.getGameId(), request, GameLogsDirection.FromClient);
-            nonblockingArchitectStub.handleBlockPlaced(
+            int id = request.getGameId();
+            log(id, request, GameLogsDirection.FromClient);
+            getNonblockingArchitect(id).handleBlockPlaced(
                 request,
-                new DelegatingStreamObserver<>(request.getGameId(), responseObserver)
+                new DelegatingStreamObserver<>(id, responseObserver)
             );
         }
 
         @Override
         public void handleBlockDestroyed(BlockDestroyedMessage request,
                                          StreamObserver<TextMessage> responseObserver) {
-            log(request.getGameId(), request, GameLogsDirection.FromClient);
-            nonblockingArchitectStub.handleBlockDestroyed(
+            int id = request.getGameId();
+            log(id, request, GameLogsDirection.FromClient);
+            getNonblockingArchitect(id).handleBlockDestroyed(
                 request,
-                new DelegatingStreamObserver<>(request.getGameId(), responseObserver)
+                new DelegatingStreamObserver<>(id, responseObserver)
             );
         }
 
@@ -261,8 +271,7 @@ public class Broker {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error (restart?, shutdown with error message?)
 
-            Void v = null;
-            responseObserver.onNext(v);
+            responseObserver.onNext(null);
             responseObserver.onCompleted();
         }
 
@@ -272,13 +281,30 @@ public class Broker {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error
 
-            Void v = null;
-            responseObserver.onNext(v);
+            responseObserver.onNext(null);
             responseObserver.onCompleted();
+        }
+
+        /**
+         * returns the correct architect stub for the given game id.
+         */
+        private ArchitectBlockingStub getBlockingArchitect(int id) {
+            return runningGames.get(id).blockingArchitectStub;
+        }
+
+        /**
+         * returns the correct architect stub for the given game id.
+         */
+        private ArchitectGrpc.ArchitectStub getNonblockingArchitect(int id) {
+            return runningGames.get(id).nonblockingArchitectStub;
         }
 
     }
 
+    /**
+     * Called whenever the status of a game changes, e.g. to started or completed.
+     * Logs the change into the database.
+     */
     private void setGameStatus(int gameid, GameStatus status) {
         // update status in games table
         jooq.update(Tables.GAMES)
@@ -347,24 +373,17 @@ public class Broker {
         var selected = new Random().nextInt(num);
         return scenarios.get(selected);
     }
-    
-    private static class DummyStreamObserver<E> implements StreamObserver<E> {
-        @Override
-        public void onNext(E value) {
 
-        }
-
-        @Override
-        public void onError(Throwable t) {
-
-        }
-
-        @Override
-        public void onCompleted() {
-
-        }
+    private ArchitectConnection selectArchitect() {
+        var num = architectConnections.size();
+        var selected = new Random().nextInt(num);
+        return architectConnections.get(selected);
     }
 
+    /**
+     * A DelegatingStreamObserver acts as a proxy in connections from the Architect to the Client.
+     * All messages are logged into the database and forwarded.
+     */
     private class DelegatingStreamObserver<E extends MessageOrBuilder>
                                           implements StreamObserver<E> {
         private StreamObserver<E> toClient;
@@ -397,6 +416,9 @@ public class Broker {
         return new Timestamp(System.currentTimeMillis());
     }
 
+    /**
+     * Logs game information to the database.
+     */
     private void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
         String messageStr = pr.printToString(message);
 
@@ -409,6 +431,9 @@ public class Broker {
         rec.store();
     }
 
+    /**
+     * Logs game information to the database.
+     */
     private void log(int gameid, Throwable message, GameLogsDirection direction) {
         String messageStr = message.toString();
 
@@ -468,7 +493,7 @@ public class Broker {
             flyway.migrate();
             flyway.migrate();
             // second, connect to database
-            conn = DriverManager.getConnection(url, user, password);
+            Connection conn = DriverManager.getConnection(url, user, password);
             DSLContext ret = DSL.using(
                 conn,
                 SQLDialect.valueOf(config.getDatabase().getSqlDialect())

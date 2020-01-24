@@ -32,7 +32,9 @@ public class IntegrationTest {
 
         BrokerConfiguration config = new BrokerConfiguration();
         config.setPort(BROKER_PORT);
-        config.setArchitectServer(new BrokerConfiguration.ArchitectServerAddress("localhost", ARCHITECT_PORT));
+        var addr = new BrokerConfiguration.ArchitectServerAddress("localhost", ARCHITECT_PORT);
+
+        config.setArchitectServers(List.of(addr));
 
         broker = new Broker(config);
         broker.start();
@@ -69,24 +71,25 @@ public class IntegrationTest {
         CountDownLatch latch = new CountDownLatch(1);
         List<String> receivedMessages = new ArrayList<>();
 
-        client.sendStatusMessage(gameId, 1, 2, 3, 0.4, 0.0, -0.7, new StreamObserver<TextMessage>() {
-            @Override
-            public void onNext(TextMessage value) {
-                System.err.println("received: " + value.getText());
-                receivedMessages.add(value.getText());
-                latch.countDown();
-            }
+        client.sendStatusMessage(gameId, 1, 2, 3, 0.4, 0.0, -0.7,
+            new StreamObserver<>() {
+                @Override
+                public void onNext(TextMessage value) {
+                    System.err.println("received: " + value.getText());
+                    receivedMessages.add(value.getText());
+                    latch.countDown();
+                }
 
-            @Override
-            public void onError(Throwable t) {
+                @Override
+                public void onError(Throwable t) {
 
-            }
+                }
 
-            @Override
-            public void onCompleted() {
+                @Override
+                public void onCompleted() {
 
-            }
-        });
+                }
+            });
 
         boolean messageReceived = latch.await(2000, TimeUnit.MILLISECONDS);
 
@@ -102,22 +105,22 @@ public class IntegrationTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         // gameid -1 is guaranteed to be invalid
-        client.sendStatusMessage(-1, 1, 2, 3, 0.5, 0.5, 0.5, new StreamObserver<TextMessage>() {
-            @Override
-            public void onNext(TextMessage value) {
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                if (t.getMessage().contains("No architect")) {
-                    latch.countDown();
+        client.sendStatusMessage(-1, 1, 2, 3, 0.5, 0.5, 0.5,
+            new StreamObserver<>() {
+                @Override
+                public void onNext(TextMessage value) {
                 }
-            }
 
-            @Override
-            public void onCompleted() {
+                @Override
+                public void onError(Throwable t) {
+                    if (t.getMessage().contains("No architect")) {
+                        latch.countDown();
+                    }
+                }
 
-            }
+                @Override
+                public void onCompleted() {
+                }
         });
 
         boolean errorReceived = latch.await(2000, TimeUnit.MILLISECONDS);

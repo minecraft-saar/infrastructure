@@ -2,16 +2,17 @@ package de.saar.minecraft.broker;
 
 import java.io.Reader;
 import java.util.ArrayList;
+import java.util.List;
 import org.yaml.snakeyaml.TypeDescription;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 
 public class BrokerConfiguration {
-    private ArchitectServerAddress architectServer;
+    private List<ArchitectServerAddress> architectServers = new ArrayList<>();
     private DatabaseAddress database;
     private int port;
     private int httpPort;
-    private ArrayList<String> scenarios = new ArrayList<>();
+    private List<String> scenarios = new ArrayList<>();
 
     /**
      * Generates a BrokerConfiguration from the yaml data provided by the reader.
@@ -20,20 +21,21 @@ public class BrokerConfiguration {
         // prepare the YAML reader to read a list of strings
         Constructor constructor = new Constructor(BrokerConfiguration.class);
         TypeDescription brokerDesc = new TypeDescription(BrokerConfiguration.class);
+
         brokerDesc.addPropertyParameters("scenarios", String.class);
+        brokerDesc.addPropertyParameters("architects", ArchitectServerAddress.class);
         constructor.addTypeDescription(brokerDesc);
 
         Yaml yaml = new Yaml(constructor);
-        BrokerConfiguration config = yaml.loadAs(reader, BrokerConfiguration.class);
-        return config;
+        return yaml.loadAs(reader, BrokerConfiguration.class);
     }
 
-    public ArchitectServerAddress getArchitectServer() {
-        return architectServer;
+    public List<ArchitectServerAddress> getArchitectServers() {
+        return architectServers;
     }
 
-    public void setArchitectServer(ArchitectServerAddress architectServer) {
-        this.architectServer = architectServer;
+    public void setArchitectServers(List<ArchitectServerAddress> architectServers) {
+        this.architectServers = architectServers;
     }
 
     public DatabaseAddress getDatabase() {
@@ -60,11 +62,11 @@ public class BrokerConfiguration {
         this.httpPort = httpPort;
     }
 
-    public ArrayList<String> getScenarios() {
+    public List<String> getScenarios() {
         return scenarios;
     }
 
-    public void setScenarios(ArrayList<String> scenarios) {
+    public void setScenarios(List<String> scenarios) {
         this.scenarios = scenarios;
     }
 
