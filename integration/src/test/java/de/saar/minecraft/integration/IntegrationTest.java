@@ -113,7 +113,7 @@ public class IntegrationTest {
 
                 @Override
                 public void onError(Throwable t) {
-                    if (t.getMessage().contains("No architect")) {
+                    if (t.getMessage().contains("No game with ID")) {
                         latch.countDown();
                     }
                 }

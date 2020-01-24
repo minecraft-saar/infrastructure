@@ -1,6 +1,5 @@
 package de.saar.minecraft.broker;
 
-import com.google.common.base.Stopwatch;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
@@ -26,6 +25,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.FileReader;
@@ -215,9 +216,21 @@ public class Broker {
             setGameStatus(id, GameStatus.Running);
         }
 
+        private StatusException createNoSuchIdException(int id) {
+            return new StatusException(
+                Status
+                    .INVALID_ARGUMENT
+                    .withDescription("No game with ID " + id)
+            );
+        }
+
         @Override
         public void endGame(GameId request, StreamObserver<Void> responseObserver) {
             int id = request.getId();
+            if (! runningGames.containsKey(id)) {
+                responseObserver.onError(createNoSuchIdException(id));
+                return;
+            }
             log(id, request, GameLogsDirection.PassToArchitect);
             Void v = getBlockingArchitect(id).endGame(request);
 
@@ -236,6 +249,10 @@ public class Broker {
         public void handleStatusInformation(StatusMessage request,
                                             StreamObserver<TextMessage> responseObserver) {
             int id = request.getGameId();
+            if (! runningGames.containsKey(id)) {
+                responseObserver.onError(createNoSuchIdException(id));
+                return;
+            }
             log(id, request, GameLogsDirection.FromClient);
             getNonblockingArchitect(id).handleStatusInformation(
                 request,
@@ -247,6 +264,10 @@ public class Broker {
         public void handleBlockPlaced(BlockPlacedMessage request,
                                       StreamObserver<TextMessage> responseObserver) {
             int id = request.getGameId();
+            if (! runningGames.containsKey(id)) {
+                responseObserver.onError(createNoSuchIdException(id));
+                return;
+            }
             log(id, request, GameLogsDirection.FromClient);
             getNonblockingArchitect(id).handleBlockPlaced(
                 request,
@@ -258,6 +279,10 @@ public class Broker {
         public void handleBlockDestroyed(BlockDestroyedMessage request,
                                          StreamObserver<TextMessage> responseObserver) {
             int id = request.getGameId();
+            if (! runningGames.containsKey(id)) {
+                responseObserver.onError(createNoSuchIdException(id));
+                return;
+            }
             log(id, request, GameLogsDirection.FromClient);
             getNonblockingArchitect(id).handleBlockDestroyed(
                 request,
@@ -298,7 +323,6 @@ public class Broker {
         private ArchitectGrpc.ArchitectStub getNonblockingArchitect(int id) {
             return runningGames.get(id).nonblockingArchitectStub;
         }
-
     }
 
     /**
