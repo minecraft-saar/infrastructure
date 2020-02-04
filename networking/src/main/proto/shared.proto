@@ -20,9 +20,16 @@ message StatusMessage {
     double zDirection = 7;
 }
 
+enum NewGameState {
+    NotChanged = 0;
+    TutorialFinished = 1;
+    SuccessfullyFinished = 2;
+};
+
 message TextMessage {
     int32 gameId = 1;
     string text = 2;
+    NewGameState newGameState = 3;
 }
 
 // type is the block material as listed in org.bukkit.Material

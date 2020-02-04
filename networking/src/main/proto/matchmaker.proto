@@ -17,9 +17,10 @@ service Broker {
     rpc HandleBlockDestroyed (BlockDestroyedMessage) returns (stream TextMessage) {}
     rpc HandleMinecraftServerError (MinecraftServerError) returns (Void) {}
     rpc HandleWorldFileError (WorldFileError) returns (Void) {}
+    rpc HandleTextMessage (TextMessage) returns (stream TextMessage) {}
 }
 
-
+// clientAddress is the IP address of the player
 message GameData {
     string clientAddress = 1;
     string playerName = 2;
