@@ -7,15 +7,14 @@ import de.saar.minecraft.broker.BrokerConfiguration;
 import de.saar.minecraft.broker.TestClient;
 import de.saar.minecraft.shared.TextMessage;
 import io.grpc.stub.StreamObserver;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class IntegrationTest {
     private ArchitectServer architectServer;
@@ -32,7 +31,8 @@ public class IntegrationTest {
 
         BrokerConfiguration config = new BrokerConfiguration();
         config.setPort(BROKER_PORT);
-        config.setArchitectServer(new BrokerConfiguration.ArchitectServerAddress("localhost", ARCHITECT_PORT));
+        config.setArchitectServer(new BrokerConfiguration.ArchitectServerAddress(
+            "localhost", ARCHITECT_PORT));
 
         broker = new Broker(config);
         broker.start();
@@ -69,7 +69,7 @@ public class IntegrationTest {
         CountDownLatch latch = new CountDownLatch(1);
         List<String> receivedMessages = new ArrayList<>();
 
-        client.sendStatusMessage(gameId, 1, 2, 3, 0.4, 0.0, -0.7, new StreamObserver<TextMessage>() {
+        client.sendStatusMessage(gameId,1,2,3,0.4,0.0,-0.7, new StreamObserver<TextMessage>() {
             @Override
             public void onNext(TextMessage value) {
                 System.err.println("received: " + value.getText());

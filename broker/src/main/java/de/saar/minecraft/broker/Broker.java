@@ -13,6 +13,7 @@ import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
+import de.saar.minecraft.shared.GamePhase;
 import de.saar.minecraft.shared.MinecraftServerError;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
@@ -196,6 +197,9 @@ public class Broker {
                 .build();
             // tell architect about the new game
             Void x = blockingArchitectStub.startGame(worldSelectMessage);
+
+            GameId gameId = GameId.newBuilder().setId(id).build();
+            nonblockingArchitectStub.observeGamePhase(gameId, new GamePhaseStreamObserver(id));
 
             rec.setArchitectHostname(config.getArchitectServer().getHostname());
             rec.setArchitectPort(config.getArchitectServer().getPort());
@@ -391,6 +395,39 @@ public class Broker {
         public void onCompleted() {
             toClient.onCompleted();
         }
+    }
+
+    private class GamePhaseStreamObserver implements StreamObserver<GamePhase> {
+        private int gameId;
+
+        public GamePhaseStreamObserver(int gameId){
+            this.gameId = gameId;
+        }
+
+        @Override
+        public void onNext(GamePhase value) {
+            // TODO notify Minecraftclient of Change
+            switch (value.getCurrentPhase()){
+                case BUILDING: {
+                    // nothing, is already default phase
+                }
+                case EVALUATION: {
+                    // notify Minecraftclient of Change
+                }
+            }
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            log(gameId, t, GameLogsDirection.FromArchitect);
+
+        }
+
+        @Override
+        public void onCompleted() {
+
+        }
+
     }
 
     private static Timestamp now() {

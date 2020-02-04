@@ -16,6 +16,7 @@ service Architect {
     rpc HandleStatusInformation (StatusMessage) returns (stream TextMessage) {}
     rpc HandleBlockPlaced (BlockPlacedMessage) returns (stream TextMessage) {}
     rpc HandleBlockDestroyed (BlockDestroyedMessage) returns (stream TextMessage) {}
+    rpc ObserveGamePhase (GameId) returns (stream GamePhase) {}
 }
 
 
