@@ -68,13 +68,3 @@ message WorldFileError {
 message Void {
 
 }
-
-// TODO: maybe split BUILDING Phase in DRY-RUN and EXPERIMENT
-message GamePhase {
-    enum Phase {
-        BUILDING = 0;
-        EVALUATION = 1;
-        END = 3;
-    }
-    Phase currentPhase = 1;
-}

@@ -6,7 +6,6 @@ option java_outer_classname = "BrokerProto";
 
 package minecraft;
 
-import "google/protobuf/wrappers.proto";
 import "shared.proto";
 
 
@@ -18,12 +17,9 @@ service Broker {
     rpc HandleBlockDestroyed (BlockDestroyedMessage) returns (stream TextMessage) {}
     rpc HandleMinecraftServerError (MinecraftServerError) returns (Void) {}
     rpc HandleWorldFileError (WorldFileError) returns (Void) {}
-    rpc HandleEvaluationAnswer (TextMessage) returns (stream TextMessage) {}
-    rpc BeginEvaluation (GameId) returns (stream TextMessage) {}
-    rpc ObserveGamePhase (GameId) returns (stream GamePhase) {}
 }
 
-// clientAddress is the IP address of the player
+
 message GameData {
     string clientAddress = 1;
     string playerName = 2;
