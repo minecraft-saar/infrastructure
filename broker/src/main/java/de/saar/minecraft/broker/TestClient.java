@@ -1,6 +1,8 @@
 package de.saar.minecraft.broker;
 
+import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
+import de.saar.minecraft.shared.None;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.WorldSelectMessage;
@@ -10,7 +12,8 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -27,6 +30,7 @@ public class TestClient {
     private ManagedChannel channel;
     private BrokerGrpc.BrokerBlockingStub blockingStub;
     private BrokerGrpc.BrokerStub nonblockingStub;
+    private List<Integer> runningGames;
 
     /**
      * Construct client connecting to HelloWorld server at {@code host:port}.
@@ -46,16 +50,32 @@ public class TestClient {
         this.channel = channel;
         blockingStub = BrokerGrpc.newBlockingStub(channel);
         nonblockingStub = BrokerGrpc.newStub(channel);
+        this.runningGames = new ArrayList<>();
     }
 
-    public void shutdown() throws InterruptedException {
-        channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+    /**
+     * Terminates all running games (ignoring errors) and shuts down the grpc channel to the broker.
+     */
+    public void shutdown() {
+        // end all running games to close the open streams
+        for (Integer i: runningGames) {
+            try {
+                blockingStub.endGame(GameId.newBuilder().setId(i).build());
+            } catch (Exception e) {
+                // maybe the game was already stopped by the broker
+                // We don't know because the test client does not check this.
+            }
+        }
+        // shut down connection to broker
+        channel.shutdown();
     }
 
     /**
      * Registers a game with the matchmaker. Returns a unique game ID for this game.
+     * Registers streamObserver for messages if provided.  If that argument is null,
+     * it will instantiate a default TextStreamObserver.
      */
-    public int registerGame(String playerName) {
+    public int registerGame(String playerName, StreamObserver<TextMessage> streamObserver) {
         // TODO fill in PlayerLoginEvent#getAddress, Player#getDisplayName
 
         String hostname = "localhost";
@@ -79,14 +99,21 @@ public class TestClient {
             return -1;
         }
         int gameId = worldSelectMessage.getGameId();
+        runningGames.add(gameId);
         var scenario = worldSelectMessage.getName();
         System.out.println("Game started for client " + gameId + " with scenario " + scenario);
+        if (streamObserver == null) {
+            streamObserver = new TextStreamObserver(gameId);
+        }
+        var gameIdMessage = GameId.newBuilder().setId(gameId).build();
+        nonblockingStub.getMessageChannel(gameIdMessage, streamObserver);
         return gameId;
     }
 
     public void finishGame(int gameId) {
         GameId gameIdMessage = GameId.newBuilder().setId(gameId).build();
         blockingStub.endGame(gameIdMessage);
+        runningGames.remove(runningGames.indexOf(gameId));
     }
 
     /**
@@ -95,7 +122,7 @@ public class TestClient {
      */
     public void sendStatusMessage(int gameId, int x, int y, int z,
                                   double xdir, double ydir, double zdir,
-                                  StreamObserver<TextMessage> streamObserver) {
+                                  StreamObserver<None> obs) {
         StatusMessage message = StatusMessage
             .newBuilder()
             .setGameId(gameId)
@@ -106,14 +133,39 @@ public class TestClient {
             .setYDirection(ydir)
             .setZDirection(zdir)
             .build();
-        nonblockingStub.handleStatusInformation(message, streamObserver);
+        nonblockingStub.handleStatusInformation(message, obs);
     }
 
-    private void sendStatusMessage(int gameId, int x, int y, int z,
+    public void sendStatusMessage(int gameId, int x, int y, int z,
                                    double xdir, double ydir, double zdir) {
-        sendStatusMessage(gameId, x, y, z, xdir, ydir, zdir, new TextStreamObserver(gameId));
+        sendStatusMessage(gameId, x, y, z, xdir, ydir, zdir, new NoneObserver());
     }
 
+    public void sendBlockPlacedMessage(int gameId, int x, int y, int z) {
+        nonblockingStub.handleBlockPlaced(BlockPlacedMessage.newBuilder()
+            .setGameId(gameId)
+            .setX(x)
+            .setY(y)
+            .setZ(z)
+            .setType(0)
+            .build(), new NoneObserver());
+    }
+
+    public static class NoneObserver implements StreamObserver<None> {
+
+        @Override
+        public void onNext(None value) {
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            logger.error(t);
+        }
+
+        @Override
+        public void onCompleted() {
+        }
+    }
 
     private static class TextStreamObserver implements StreamObserver<TextMessage> {
         private int gameId;
@@ -159,7 +211,7 @@ public class TestClient {
                     int id = Integer.parseInt(gameData.substring(STATUS.length() + 1));
                     client.sendStatusMessage(id, 1, 2, 3, 0.4, 0.0, -0.7);
                 } else {
-                    gameId = client.registerGame(gameData);
+                    gameId = client.registerGame(gameData, null);
                     System.out.printf("got game ID %d\n", gameId);
                 }
             }

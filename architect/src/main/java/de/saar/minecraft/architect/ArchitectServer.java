@@ -7,7 +7,7 @@ import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
-import de.saar.minecraft.shared.Void;
+import de.saar.minecraft.shared.None;
 import de.saar.minecraft.shared.WorldSelectMessage;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -93,7 +93,7 @@ public class ArchitectServer {
          * by this ArchitectServer.
          */
         @Override
-        public void hello(Void request, StreamObserver<ArchitectInformation> responseObserver) {
+        public void hello(None request, StreamObserver<ArchitectInformation> responseObserver) {
             Architect arch = factory.build();
             // no need to initialize it, it will disappear right away
 
@@ -110,15 +110,31 @@ public class ArchitectServer {
          * Creates a new architect instance for the new game.
          */
         @Override
-        public void startGame(WorldSelectMessage request, StreamObserver<Void> responseObserver) {
+        public void startGame(WorldSelectMessage request, StreamObserver<None> responseObserver) {
             Architect arch = factory.build();
             arch.initialize(request);
             runningArchitects.put(request.getGameId(), arch);
 
-            responseObserver.onNext(Void.newBuilder().build());
+            responseObserver.onNext(None.newBuilder().build());
             responseObserver.onCompleted();
 
             logger.info("architect for id {}: {}", request.getGameId(), arch);
+        }
+
+        @Override
+        public void getMessageChannel(GameId request,
+            StreamObserver<TextMessage> responseObserver) {
+            var architect = runningArchitects.get(request.getId());
+            if (architect == null) {
+                Status status = Status.newBuilder()
+                    .setCode(Code.INVALID_ARGUMENT.getNumber())
+                    .setMessage("No architect running for game ID " + request.getId())
+                    .build();
+                responseObserver.onError(StatusProto.toStatusRuntimeException(status));
+                return;
+            }
+
+            architect.setMessageChannel(responseObserver);
         }
 
         /**
@@ -126,10 +142,27 @@ public class ArchitectServer {
          * architect instance.
          */
         @Override
-        public void endGame(GameId request, StreamObserver<Void> responseObserver) {
+        public void endGame(GameId request, StreamObserver<None> responseObserver) {
+            var architect = runningArchitects.get(request.getId());
+            if (architect != null) {
+                architect.shutdown();
+            } else {
+                responseObserver.onError(new RuntimeException("Incorrect ID"));
+                return;
+            }
             runningArchitects.remove(request.getId());
             logger.info("architect for id {} finished", request.getId());
-            responseObserver.onNext(Void.newBuilder().build());
+            responseObserver.onNext(None.newBuilder().build());
+            responseObserver.onCompleted();
+        }
+
+        @Override
+        public void endAllGames(None request, StreamObserver<None> responseObserver) {
+            for (var a: runningArchitects.values()) {
+                a.shutdown();
+            }
+            runningArchitects.clear();
+            responseObserver.onNext(None.getDefaultInstance());
             responseObserver.onCompleted();
         }
 
@@ -138,7 +171,7 @@ public class ArchitectServer {
          */
         @Override
         public void handleStatusInformation(StatusMessage request,
-                                            StreamObserver<TextMessage> responseObserver) {
+                                            StreamObserver<None> responseObserver) {
             Architect arch = runningArchitects.get(request.getGameId());
 
             if (arch == null) {
@@ -148,7 +181,7 @@ public class ArchitectServer {
                         .build();
                 responseObserver.onError(StatusProto.toStatusRuntimeException(status));
             } else {
-                arch.handleStatusInformation(request, responseObserver);
+                arch.handleStatusInformation(request);
             }
         }
 
@@ -157,7 +190,7 @@ public class ArchitectServer {
          */
         @Override
         public void handleBlockPlaced(BlockPlacedMessage request,
-                                      StreamObserver<TextMessage> responseObserver) {
+                                      StreamObserver<None> responseObserver) {
             Architect arch = runningArchitects.get(request.getGameId());
 
             if (arch == null) {
@@ -167,7 +200,7 @@ public class ArchitectServer {
                     .build();
                 responseObserver.onError(StatusProto.toStatusRuntimeException(status));
             } else {
-                arch.handleBlockPlaced(request, responseObserver);
+                arch.handleBlockPlaced(request);
             }
         }
 
@@ -176,7 +209,7 @@ public class ArchitectServer {
          */
         @Override
         public void handleBlockDestroyed(BlockDestroyedMessage request,
-                                         StreamObserver<TextMessage> responseObserver) {
+                                         StreamObserver<None> responseObserver) {
             Architect arch = runningArchitects.get(request.getGameId());
 
             if (arch == null) {
@@ -186,7 +219,7 @@ public class ArchitectServer {
                     .build();
                 responseObserver.onError(StatusProto.toStatusRuntimeException(status));
             } else {
-                arch.handleBlockDestroyed(request, responseObserver);
+                arch.handleBlockDestroyed(request);
             }
         }
     }

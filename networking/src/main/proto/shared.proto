@@ -72,6 +72,6 @@ message WorldFileError {
     string message = 2;
 }
 
-message Void {
+message None {
 
 }

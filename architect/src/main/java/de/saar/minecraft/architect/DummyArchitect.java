@@ -2,6 +2,7 @@ package de.saar.minecraft.architect;
 
 import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
+import de.saar.minecraft.shared.NewGameState;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.WorldSelectMessage;
@@ -9,9 +10,18 @@ import io.grpc.stub.StreamObserver;
 
 public class DummyArchitect implements Architect {
     private int waitTime;
+    private StreamObserver<TextMessage> messageChannel;
+
+    private final boolean endAfterFirstBlock;
+
+    public DummyArchitect(int waitTime, boolean endAfterFirstBlock) {
+        this.endAfterFirstBlock = endAfterFirstBlock;
+        this.waitTime = waitTime;
+    }
 
     public DummyArchitect(int waitTime) {
         this.waitTime = waitTime;
+        this.endAfterFirstBlock = false;
     }
 
     public DummyArchitect() {
@@ -24,8 +34,20 @@ public class DummyArchitect implements Architect {
     }
 
     @Override
-    public void handleStatusInformation(StatusMessage request,
-                                        StreamObserver<TextMessage> responseObserver) {
+    public void shutdown() {
+        if (messageChannel != null) {
+            messageChannel.onCompleted();
+            messageChannel = null;
+        }
+    }
+
+    @Override
+    public void setMessageChannel(StreamObserver<TextMessage> messageChannel) {
+        this.messageChannel = messageChannel;
+    }
+
+    @Override
+    public void handleStatusInformation(StatusMessage request) {
         int x = request.getX();
         double xdir = request.getXDirection();
         int gameId = request.getGameId();
@@ -43,14 +65,14 @@ public class DummyArchitect implements Architect {
             }
 
             // send the text message back to the client
-            responseObserver.onNext(message);
-            responseObserver.onCompleted();
+            synchronized (messageChannel) {
+                messageChannel.onNext(message);
+            }
         }).start();
     }
 
     @Override
-    public void handleBlockPlaced(BlockPlacedMessage request,
-        StreamObserver<TextMessage> responseObserver) {
+    public void handleBlockPlaced(BlockPlacedMessage request) {
         int type = request.getType();
         int x = request.getX();
         int y = request.getY();
@@ -60,7 +82,11 @@ public class DummyArchitect implements Architect {
         // spawn a thread for a long-running computation
         new Thread(() -> {
             String text = String.format("A block was placed at %d-%d-%d :%d", x, y, z, type);
-            TextMessage message = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
+            var tm =  TextMessage.newBuilder().setGameId(gameId).setText(text);
+            if (endAfterFirstBlock) {
+                tm = tm.setNewGameState(NewGameState.SuccessfullyFinished);
+            }
+            TextMessage message = tm.build();
 
             // delay for a bit
             try {
@@ -70,14 +96,14 @@ public class DummyArchitect implements Architect {
             }
 
             // send the text message back to the client
-            responseObserver.onNext(message);
-            responseObserver.onCompleted();
+            synchronized (messageChannel) {
+                messageChannel.onNext(message);
+            }
         }).start();
     }
 
     @Override
-    public void handleBlockDestroyed(BlockDestroyedMessage request,
-        StreamObserver<TextMessage> responseObserver) {
+    public void handleBlockDestroyed(BlockDestroyedMessage request) {
         int gameId = request.getGameId();
         int x = request.getX();
         int y = request.getY();
@@ -97,8 +123,9 @@ public class DummyArchitect implements Architect {
             }
 
             // send the text message back to the client
-            responseObserver.onNext(message);
-            responseObserver.onCompleted();
+            synchronized (messageChannel) {
+                messageChannel.onNext(message);
+            }
         }).start();
     }
 

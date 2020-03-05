@@ -8,15 +8,17 @@ import de.saar.minecraft.architect.ArchitectInformation;
 import de.saar.minecraft.broker.db.GameLogsDirection;
 import de.saar.minecraft.broker.db.GameStatus;
 import de.saar.minecraft.broker.db.Tables;
+import de.saar.minecraft.broker.db.tables.Questionnaires;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.MinecraftServerError;
+import de.saar.minecraft.shared.NewGameState;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
-import de.saar.minecraft.shared.Void;
+import de.saar.minecraft.shared.None;
 import de.saar.minecraft.shared.WorldFileError;
 import de.saar.minecraft.shared.WorldSelectMessage;
 import io.github.classgraph.ClassGraph;
@@ -39,6 +41,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -131,7 +134,7 @@ public class Broker {
             // check connection to Architect server and get architectInfo string
             try {
                 archConn.architectInfo = archConn.blockingArchitectStub.hello(
-                    Void.newBuilder().build());
+                    None.newBuilder().build());
             } catch (StatusRuntimeException e) {
                 logger.error("Failed to connect to architect server at "
                     + asa + "\n"
@@ -154,9 +157,13 @@ public class Broker {
     }
 
     /**
-     * Performs a shutdown of the underlying grpc server.
+     * Performs a shutdown of the underlying grpc server after terminating all games
+     * currently running.
      */
     public void stop() {
+        for (ArchitectConnection a: architectConnections) {
+            a.blockingArchitectStub.endAllGames(None.getDefaultInstance());
+        }
         if (server != null) {
             server.shutdown();
         }
@@ -173,6 +180,14 @@ public class Broker {
 
 
     private class BrokerImpl extends BrokerGrpc.BrokerImplBase {
+
+        private ConcurrentHashMap<Integer, Questionnaire> questionnaires;
+
+        public BrokerImpl() {
+            super();
+            this.questionnaires = new ConcurrentHashMap<>();
+        }
+
         /**
          * Handles the start of a game. Creates a record for this game in the database
          * and returns a unique game ID to the client.
@@ -202,7 +217,7 @@ public class Broker {
                 .setName(scenario)
                 .build();
             // tell architect about the new game
-            Void x = architect.blockingArchitectStub.startGame(worldSelectMessage);
+            architect.blockingArchitectStub.startGame(worldSelectMessage);
 
             rec.setArchitectHostname(architect.host);
             rec.setArchitectPort(architect.port);
@@ -216,6 +231,38 @@ public class Broker {
             setGameStatus(id, GameStatus.Running);
         }
 
+        /**
+         * initializes a new Questionnaire object that takes
+         * over aksing and storing answers to questions.
+         * @param gameId the ID is only needed for DB storage
+         * @param streamObserver The stream used to send questions to the player.
+         */
+        public void startQuestionnaire(int gameId,
+                    DelegatingStreamObserver streamObserver) {
+            var questionnaire = new Questionnaire(gameId,
+                List.of("Q1", "Q2"),
+                streamObserver,
+                this);
+            questionnaires.put(gameId, questionnaire);
+        }
+
+        public void endQuestionnaire(int game) {
+
+        }
+
+        @Override
+        public void getMessageChannel(GameId request,
+            StreamObserver<TextMessage> responseObserver) {
+            int id = request.getId();
+            var so = new DelegatingStreamObserver<>(id, responseObserver, this);
+            var architect = getNonblockingArchitect(id);
+            if (architect != null) {
+                architect.getMessageChannel(request, so);
+            } else {
+                responseObserver.onError(new RuntimeException("Architect is null"));
+            }
+        }
+
         private StatusException createNoSuchIdException(int id) {
             return new StatusException(
                 Status
@@ -225,19 +272,20 @@ public class Broker {
         }
 
         @Override
-        public void endGame(GameId request, StreamObserver<Void> responseObserver) {
+        public void endGame(GameId request, StreamObserver<None> responseObserver) {
             int id = request.getId();
             if (! runningGames.containsKey(id)) {
                 responseObserver.onError(createNoSuchIdException(id));
                 return;
             }
             log(id, request, GameLogsDirection.PassToArchitect);
-            Void v = getBlockingArchitect(id).endGame(request);
+            None v = getBlockingArchitect(id).endGame(request);
 
             responseObserver.onNext(v);
             responseObserver.onCompleted();
 
             setGameStatus(id, GameStatus.Finished);
+            runningGames.remove(id);
         }
 
         /**
@@ -247,7 +295,7 @@ public class Broker {
          */
         @Override
         public void handleStatusInformation(StatusMessage request,
-                                            StreamObserver<TextMessage> responseObserver) {
+                                            StreamObserver<None> responseObserver) {
             int id = request.getGameId();
             if (! runningGames.containsKey(id)) {
                 responseObserver.onError(createNoSuchIdException(id));
@@ -255,29 +303,25 @@ public class Broker {
             }
             log(id, request, GameLogsDirection.FromClient);
             getNonblockingArchitect(id).handleStatusInformation(
-                request,
-                new DelegatingStreamObserver<>(id, responseObserver)
+                request, responseObserver
             );
         }
 
         @Override
         public void handleBlockPlaced(BlockPlacedMessage request,
-                                      StreamObserver<TextMessage> responseObserver) {
+                                      StreamObserver<None> responseObserver) {
             int id = request.getGameId();
             if (! runningGames.containsKey(id)) {
                 responseObserver.onError(createNoSuchIdException(id));
                 return;
             }
             log(id, request, GameLogsDirection.FromClient);
-            getNonblockingArchitect(id).handleBlockPlaced(
-                request,
-                new DelegatingStreamObserver<>(id, responseObserver)
-            );
+            getNonblockingArchitect(id).handleBlockPlaced(request, responseObserver);
         }
 
         @Override
         public void handleBlockDestroyed(BlockDestroyedMessage request,
-                                         StreamObserver<TextMessage> responseObserver) {
+                                         StreamObserver<None> responseObserver) {
             int id = request.getGameId();
             if (! runningGames.containsKey(id)) {
                 responseObserver.onError(createNoSuchIdException(id));
@@ -285,14 +329,12 @@ public class Broker {
             }
             log(id, request, GameLogsDirection.FromClient);
             getNonblockingArchitect(id).handleBlockDestroyed(
-                request,
-                new DelegatingStreamObserver<>(id, responseObserver)
-            );
+                request, responseObserver);
         }
 
         @Override
         public void handleMinecraftServerError(MinecraftServerError request,
-                                               StreamObserver<Void> responseObserver) {
+                                               StreamObserver<None> responseObserver) {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error (restart?, shutdown with error message?)
 
@@ -302,12 +344,77 @@ public class Broker {
 
         @Override
         public void handleWorldFileError(WorldFileError request,
-                                         StreamObserver<Void> responseObserver) {
+                                         StreamObserver<None> responseObserver) {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error
 
             responseObserver.onNext(null);
             responseObserver.onCompleted();
+        }
+
+        private class Questionnaire {
+            public final int gameId;
+            public List<String> questions;
+            public final DelegatingStreamObserver stream;
+            private int currQuestion = 0;
+            private BrokerImpl brokerImpl;
+            public List<String> answers = new ArrayList<>();
+
+            public Questionnaire(int gameId,
+                                 List<String> questions,
+                                 DelegatingStreamObserver stream,
+                                 BrokerImpl brokerImpl ) {
+                this.questions = questions;
+                this.stream = stream;
+                this.gameId = gameId;
+                this.brokerImpl = brokerImpl;
+                sendQuestion(questions.get(currQuestion));
+            }
+
+            /**
+             * processes a text message sent by the player.
+             * @param request The message object forwarded by the BrokerImpl.
+             */
+            public void processAnswer(TextMessage request) {
+                var answer = request.getText();
+
+                var record = jooq.newRecord(Questionnaires.QUESTIONNAIRES);
+                record.setAnswer(answer);
+                record.setGameid(gameId);
+                record.setQuestion(questions.get(currQuestion));
+                record.setTimestamp(now());
+                record.store();
+
+                answers.add(answer);
+                currQuestion += 1;
+                if (currQuestion == questions.size()) {
+                    brokerImpl.endQuestionnaire(gameId);
+                }
+            }
+
+            private void sendQuestion(String question) {
+                stream.onNext(TextMessage.newBuilder()
+                    .setGameId(gameId)
+                    .setText(question)
+                    .build());
+            }
+        }
+
+        @Override
+        public void handleTextMessage(TextMessage request,
+                                      StreamObserver<None> responseObserver) {
+            int id = request.getGameId();
+            if (!questionnaires.containsKey(id)) {
+                // ignore text messages if no questionnaire is running
+                responseObserver.onCompleted();
+                return;
+            }
+            try {
+                questionnaires.get(id).processAnswer(request);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                responseObserver.onError(e);
+            }
         }
 
         /**
@@ -412,14 +519,24 @@ public class Broker {
                                           implements StreamObserver<E> {
         private StreamObserver<E> toClient;
         private int gameId;
+        private BrokerImpl broker;
 
-        public DelegatingStreamObserver(int gameId, StreamObserver<E> toClient) {
+        public DelegatingStreamObserver(int gameId,
+                                        StreamObserver<E> toClient,
+                                        BrokerImpl broker) {
             this.toClient = toClient;
             this.gameId = gameId;
+            this.broker = broker;
         }
 
         @Override
-        public void onNext(E value) {
+        public synchronized void onNext(E value) {
+            if (value instanceof TextMessage) {
+                var v = (TextMessage) value;
+                if (v.getNewGameState() == NewGameState.SuccessfullyFinished) {
+                    broker.startQuestionnaire(gameId, this);
+                }
+            }
             toClient.onNext(value);
             log(gameId, value, GameLogsDirection.PassToClient);
         }

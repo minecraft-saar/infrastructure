@@ -6,6 +6,7 @@ import de.saar.minecraft.broker.Broker;
 import de.saar.minecraft.broker.BrokerConfiguration;
 import de.saar.minecraft.broker.TestClient;
 import de.saar.minecraft.shared.TextMessage;
+import de.saar.minecraft.shared.None;
 import io.grpc.stub.StreamObserver;
 import org.junit.After;
 import org.junit.Before;
@@ -27,7 +28,7 @@ public class IntegrationTest {
 
     @Before
     public void setup() throws IOException {
-        architectServer = new ArchitectServer(ARCHITECT_PORT, () -> new DummyArchitect(0));
+        architectServer = new ArchitectServer(ARCHITECT_PORT, () -> new DummyArchitect(0, true));
         architectServer.start();
 
         BrokerConfiguration config = new BrokerConfiguration();
@@ -44,34 +45,65 @@ public class IntegrationTest {
 
     @After
     public void teardown() throws InterruptedException {
+        // broker.stop();
+        broker.stop();
+        // broker.blockUntilShutdown();
+        broker = null;
+
         client.shutdown();
         client = null;
 
-        broker.stop();
-        broker.blockUntilShutdown();
-        broker = null;
-
         architectServer.stop();
-        architectServer.blockUntilShutdown();
+        // architectServer.blockUntilShutdown();
         architectServer = null;
     }
 
     @Test
     public void testConnection() {
-        int gameId = client.registerGame("test");
+        int gameId = client.registerGame("test", null);
         assert gameId > 0;
 
         client.finishGame(gameId);
     }
 
     @Test
+    public void testQuestionnaire() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        int gameId = client.registerGame("test", new StreamObserver<TextMessage>() {
+            @Override
+            public void onNext(TextMessage value) {
+                var message = value.getText();
+                System.out.print("Client got text message: " + message + "\n");
+                if (message.equals("Q1")) {
+                    latch.countDown();
+                }
+            }
+            @Override
+            public void onError(Throwable t) {
+                System.out.println("Error occured!");
+                System.out.println(t);
+            }
+            @Override
+            public void onCompleted() {
+                System.out.println("Client: stream closed");
+            }
+        });
+
+        client.sendBlockPlacedMessage(gameId, 1,1,1);
+        client.sendBlockPlacedMessage(gameId, 1,1,1);
+
+        boolean messageReceived = latch.await(2000, TimeUnit.MILLISECONDS);
+
+        assert messageReceived;
+    }
+
+    @Test
     public void testStatusCallback() throws InterruptedException {
-        int gameId = client.registerGame("test");
 
         CountDownLatch latch = new CountDownLatch(1);
         List<String> receivedMessages = new ArrayList<>();
 
-        client.sendStatusMessage(gameId, 1, 2, 3, 0.4, 0.0, -0.7,
+        int gameId = client.registerGame("test",
             new StreamObserver<>() {
                 @Override
                 public void onNext(TextMessage value) {
@@ -89,23 +121,24 @@ public class IntegrationTest {
                 public void onCompleted() {
 
                 }
-            });
+            }
+        );
+
+        client.sendStatusMessage(gameId, 1, 2, 3, 0.4, 0.0, -0.7);
 
         boolean messageReceived = latch.await(2000, TimeUnit.MILLISECONDS);
 
         assert messageReceived;
         assert !receivedMessages.isEmpty();
         assert receivedMessages.get(0).startsWith("your x was");
-
-        client.finishGame(gameId);
+        // client.finishGame(gameId);*/
     }
 
     @Test
     public void testInvalidStatus() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
-
         // gameid -1 is guaranteed to be invalid
-        client.sendStatusMessage(-1, 1, 2, 3, 0.5, 0.5, 0.5,
+        client.registerGame("test",
             new StreamObserver<>() {
                 @Override
                 public void onNext(TextMessage value) {
@@ -122,6 +155,24 @@ public class IntegrationTest {
                 public void onCompleted() {
                 }
         });
+
+        client.sendStatusMessage(-1, 1, 2, 3, 0.5, 0.5, 0.5,
+            new StreamObserver<None>() {
+                @Override
+                public void onNext(None value) {
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    if (t.getMessage().contains("No game with ID")) {
+                        latch.countDown();
+                    }
+                }
+
+                @Override
+                public void onCompleted() {
+                }
+            });
 
         boolean errorReceived = latch.await(2000, TimeUnit.MILLISECONDS);
         assert errorReceived;

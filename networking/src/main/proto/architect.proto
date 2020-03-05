@@ -10,17 +10,14 @@ import "shared.proto";
 
 
 service Architect {
-    rpc Hello (Void) returns (ArchitectInformation) {}
-    rpc StartGame (WorldSelectMessage) returns (Void) {}
-    rpc EndGame (GameId) returns (Void) {}
-    rpc HandleStatusInformation (StatusMessage) returns (stream TextMessage) {}
-    rpc HandleBlockPlaced (BlockPlacedMessage) returns (stream TextMessage) {}
-    rpc HandleBlockDestroyed (BlockDestroyedMessage) returns (stream TextMessage) {}
-}
-
-
-message GameDataWithId {
-    int32 id = 1;
+    rpc Hello (None) returns (ArchitectInformation) {}
+    rpc StartGame (WorldSelectMessage) returns (None) {}
+    rpc GetMessageChannel (GameId) returns (stream TextMessage) {}
+    rpc EndGame (GameId) returns (None) {}
+    rpc EndAllGames(None) returns (None) {}
+    rpc HandleStatusInformation (StatusMessage) returns (None) {}
+    rpc HandleBlockPlaced (BlockPlacedMessage) returns (None) {}
+    rpc HandleBlockDestroyed (BlockDestroyedMessage) returns (None) {}
 }
 
 message ArchitectInformation {

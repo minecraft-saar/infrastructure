@@ -26,26 +26,31 @@ public interface Architect {
     public void initialize(WorldSelectMessage request);
 
     /**
+     * Called when a game is finished.  Should de-initialize everything
+     * and close the messageChannel.
+     */
+    public void shutdown();
+
+    public void setMessageChannel(StreamObserver<TextMessage> messageChannel);
+
+    /**
      * Handles the regular status updates from the Minecraft server.
      * This method is called frequently, and should thus return quickly.
      * Spawn off a separate thread if you need to perform an expensive
      * computation, and then send any strings you like to the
      * responseObserver.
      */
-    public void handleStatusInformation(StatusMessage request,
-                                        StreamObserver<TextMessage> responseObserver);
+    public void handleStatusInformation(StatusMessage request);
 
     /**
      * Handles updates when a block is placed in the Minecraft world.
      */
-    public void handleBlockPlaced(BlockPlacedMessage request,
-                                  StreamObserver<TextMessage> responseObserver);
+    public void handleBlockPlaced(BlockPlacedMessage request);
 
     /**
      * Handles updates when a block in the Minecraft world is destroyed.
      */
-    public void handleBlockDestroyed(BlockDestroyedMessage request,
-                                     StreamObserver<TextMessage> responseObserver);
+    public void handleBlockDestroyed(BlockDestroyedMessage request);
 
     /**
      * Returns a string which identifies this Architect. The string might
