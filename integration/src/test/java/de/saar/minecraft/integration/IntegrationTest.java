@@ -33,6 +33,7 @@ public class IntegrationTest {
 
         BrokerConfiguration config = new BrokerConfiguration();
         config.setPort(BROKER_PORT);
+        config.setScenarios(List.of("bridge"));
         var addr = new BrokerConfiguration.ArchitectServerAddress("localhost", ARCHITECT_PORT);
 
         config.setArchitectServers(List.of(addr));
@@ -74,7 +75,7 @@ public class IntegrationTest {
             public void onNext(TextMessage value) {
                 var message = value.getText();
                 System.out.print("Client got text message: " + message + "\n");
-                if (message.equals("Q1")) {
+                if (message.equals("This is the first question")) {
                     latch.countDown();
                 }
             }

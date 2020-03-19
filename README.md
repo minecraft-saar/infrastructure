@@ -11,6 +11,13 @@ Infrastructure for connecting a Minecraft server to the NLG system.
 
 (the shadow Jar is in architect/build/libs/architect-0.1.0-SNAPSHOT-all.jar)
 
+`./gradlew architect:run` starts the architect with the default arguments:
+- waitTime = 1000
+- endAfterFirstBlock = false
+
+Different values can be specified when starting the architect, 
+e.g. `./gradlew architect:run --args="100 true"`
+
 
 ### Start the broker
 

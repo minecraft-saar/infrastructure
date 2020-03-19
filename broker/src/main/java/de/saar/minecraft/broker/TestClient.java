@@ -13,6 +13,8 @@ import io.grpc.stub.StreamObserver;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -151,6 +153,13 @@ public class TestClient {
             .build(), new NoneObserver());
     }
 
+    public void sendTextMessage(int gameId, String message) {
+        nonblockingStub.handleTextMessage(TextMessage.newBuilder()
+            .setGameId(gameId)
+            .setText(message)
+            .build(), new NoneObserver());
+    }
+
     public static class NoneObserver implements StreamObserver<None> {
 
         @Override
@@ -190,7 +199,7 @@ public class TestClient {
     }
 
     /**
-     * Runs the TestClient with a promp to start new clients.
+     * Runs the TestClient with a prompt to start new clients.
      */
     public static void main(String[] args) throws InterruptedException {
         TestClient client = new TestClient("localhost", 2802);
@@ -198,10 +207,12 @@ public class TestClient {
         System.out.println("Interactive test console for starting test clients");
         System.out.println("Enter a player name to start a new client");
         System.out.println("Enter 'status XY' to send a status to the broker for client no XY.");
+        System.out.println("Enter 'place XY' to simulate placing a block for client no XY.");
+        System.out.println("Enter 'text XY <message>' to send a text message from client no XY.");
         System.out.println("Ctrl-D exits the program.");
         try {
             while (true) {
-                System.out.print("enter player name: ");
+                System.out.print("enter player name or command: ");
                 String gameData = System.console().readLine();
 
                 if (gameData == null) {
@@ -210,6 +221,14 @@ public class TestClient {
                 } else if (gameData.startsWith(STATUS)) {
                     int id = Integer.parseInt(gameData.substring(STATUS.length() + 1));
                     client.sendStatusMessage(id, 1, 2, 3, 0.4, 0.0, -0.7);
+                } else if (gameData.startsWith(PLACE)) {
+                    int id = Integer.parseInt(gameData.substring(PLACE.length() + 1));
+                    client.sendBlockPlacedMessage(id, 5,2,3);
+                } else if (gameData.startsWith(TEXT)) {
+                    String[] parts = gameData.split(" ");
+                    int id = Integer.parseInt(parts[1]);
+                    String message = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
+                    client.sendTextMessage(id, message);
                 } else {
                     gameId = client.registerGame(gameData, null);
                     System.out.printf("got game ID %d\n", gameId);
@@ -221,4 +240,7 @@ public class TestClient {
     }
 
     private static final String STATUS = "status";
+    private static final String PLACE = "place";
+    private static final String DESTROY = "destroy";
+    private static final String TEXT = "text";
 }
