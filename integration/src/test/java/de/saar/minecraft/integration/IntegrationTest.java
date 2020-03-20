@@ -5,18 +5,17 @@ import de.saar.minecraft.architect.DummyArchitect;
 import de.saar.minecraft.broker.Broker;
 import de.saar.minecraft.broker.BrokerConfiguration;
 import de.saar.minecraft.broker.TestClient;
-import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.None;
+import de.saar.minecraft.shared.TextMessage;
 import io.grpc.stub.StreamObserver;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class IntegrationTest {
     private ArchitectServer architectServer;
@@ -26,6 +25,9 @@ public class IntegrationTest {
     private static final int ARCHITECT_PORT = 20001;
     private static final int BROKER_PORT = 20002;
 
+    /**
+     * Starts a new architectServer, broker, and client.
+     */
     @Before
     public void setup() throws IOException {
         architectServer = new ArchitectServer(ARCHITECT_PORT, () -> new DummyArchitect(0, true));
@@ -43,6 +45,9 @@ public class IntegrationTest {
         client = new TestClient("localhost", BROKER_PORT);
     }
 
+    /**
+     * stops architectServer, broker, and client.
+     */
     @After
     public void teardown() throws InterruptedException {
         // broker.stop();
@@ -78,11 +83,13 @@ public class IntegrationTest {
                     latch.countDown();
                 }
             }
+
             @Override
             public void onError(Throwable t) {
                 System.out.println("Error occured!");
                 System.out.println(t);
             }
+
             @Override
             public void onCompleted() {
                 System.out.println("Client: stream closed");
@@ -154,7 +161,7 @@ public class IntegrationTest {
                 @Override
                 public void onCompleted() {
                 }
-        });
+            });
 
         client.sendStatusMessage(-1, 1, 2, 3, 0.5, 0.5, 0.5,
             new StreamObserver<None>() {
