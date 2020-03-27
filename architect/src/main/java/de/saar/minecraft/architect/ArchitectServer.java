@@ -124,6 +124,7 @@ public class ArchitectServer {
         @Override
         public void getMessageChannel(GameId request,
             StreamObserver<TextMessage> responseObserver) {
+            logger.info("architectServer getMessageChannel");
             var architect = runningArchitects.get(request.getId());
             if (architect == null) {
                 Status status = Status.newBuilder()
@@ -131,10 +132,12 @@ public class ArchitectServer {
                     .setMessage("No architect running for game ID " + request.getId())
                     .build();
                 responseObserver.onError(StatusProto.toStatusRuntimeException(status));
+                logger.warn("could not find architect for message channel");
                 return;
             }
 
             architect.setMessageChannel(responseObserver);
+            logger.info("set the message channel");
         }
 
         /**

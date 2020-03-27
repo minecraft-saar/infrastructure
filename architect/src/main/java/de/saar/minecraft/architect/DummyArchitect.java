@@ -8,7 +8,7 @@ import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.WorldSelectMessage;
 import io.grpc.stub.StreamObserver;
 
-public class DummyArchitect implements Architect {
+public class DummyArchitect extends AbstractArchitect {
     private int waitTime;
     private StreamObserver<TextMessage> messageChannel;
 
@@ -31,19 +31,7 @@ public class DummyArchitect implements Architect {
     @Override
     public void initialize(WorldSelectMessage request) {
         System.err.println("Got world " + request.getName());
-    }
-
-    @Override
-    public void shutdown() {
-        if (messageChannel != null) {
-            messageChannel.onCompleted();
-            messageChannel = null;
-        }
-    }
-
-    @Override
-    public void setMessageChannel(StreamObserver<TextMessage> messageChannel) {
-        this.messageChannel = messageChannel;
+        setGameId(request.getGameId());
     }
 
     @Override
@@ -55,19 +43,14 @@ public class DummyArchitect implements Architect {
         // spawn a thread for a long-running computation
         new Thread(() -> {
             String text = "your x was " + x + " and you looked in x direction " + xdir;
-            TextMessage message = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
-
             // delay for a bit
             try {
                 Thread.sleep(waitTime);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
             // send the text message back to the client
-            synchronized (messageChannel) {
-                messageChannel.onNext(message);
-            }
+            sendMessage(text);
         }).start();
     }
 
@@ -82,23 +65,17 @@ public class DummyArchitect implements Architect {
         // spawn a thread for a long-running computation
         new Thread(() -> {
             String text = String.format("A block was placed at %d-%d-%d :%d", x, y, z, type);
-            var tm =  TextMessage.newBuilder().setGameId(gameId).setText(text);
+            var gameState = NewGameState.NotChanged;
             if (endAfterFirstBlock) {
-                tm = tm.setNewGameState(NewGameState.SuccessfullyFinished);
+                gameState = NewGameState.SuccessfullyFinished;
             }
-            TextMessage message = tm.build();
-
             // delay for a bit
             try {
                 Thread.sleep(waitTime);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-            // send the text message back to the client
-            synchronized (messageChannel) {
-                messageChannel.onNext(message);
-            }
+            sendMessage(text, gameState);
         }).start();
     }
 
@@ -113,19 +90,13 @@ public class DummyArchitect implements Architect {
         // spawn a thread for a long-running computation
         new Thread(() -> {
             var text = String.format("A block was destroyed at %d-%d-%d :%d", x, y, z, type);
-            var message = TextMessage.newBuilder().setGameId(gameId).setText(text).build();
-
             // delay for a bit
             try {
                 Thread.sleep(waitTime);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-            // send the text message back to the client
-            synchronized (messageChannel) {
-                messageChannel.onNext(message);
-            }
+            sendMessage(text);
         }).start();
     }
 

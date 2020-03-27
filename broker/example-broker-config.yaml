@@ -3,15 +3,15 @@ port: 2802
 httpPort: 8080
 
 scenarios:
- - bridge
+ - house
 
 architectServers:
  - hostname: localhost
    port: 10000
- - hostname: localhost
-   port: 10001
+# you can add more servers:
+# - hostname: localhost
+#   port: 10001
 
 database:
   url: "jdbc:mysql://localhost:3306/"
-  username: "root"
-  
+  username: "minecraft"
