@@ -16,9 +16,9 @@ import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.MinecraftServerError;
 import de.saar.minecraft.shared.NewGameState;
+import de.saar.minecraft.shared.None;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
-import de.saar.minecraft.shared.None;
 import de.saar.minecraft.shared.WorldFileError;
 import de.saar.minecraft.shared.WorldSelectMessage;
 import io.github.classgraph.ClassGraph;
@@ -31,8 +31,11 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -47,6 +50,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.flywaydb.core.Flyway;
 import org.jooq.DSLContext;
+import org.jooq.Record;
+import org.jooq.Result;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 
@@ -80,6 +85,7 @@ public class Broker {
 
     private final TextFormat.Printer pr = TextFormat.printer();
     private List<String> scenarios;
+    private HashMap<String, List<String>> questionTemplates;
 
     /**
      * Builds a new broker from a given configuration.
@@ -88,6 +94,7 @@ public class Broker {
     public Broker(BrokerConfiguration config) {
         logger.trace("Broker initialization");
         initScenarios(config.getScenarios());
+        initQuestionnaires(config.getScenarios());
         this.config = config;
         jooq = setupDatabase();
 
@@ -233,17 +240,34 @@ public class Broker {
 
         /**
          * initializes a new Questionnaire object that takes
-         * over aksing and storing answers to questions.
-         * @param gameId the ID is only needed for DB storage
+         * over asking and storing answers to questions.
+         * @param gameId The id of the game for which the questionnaire is needed.
          * @param streamObserver The stream used to send questions to the player.
          */
         public void startQuestionnaire(int gameId,
                     DelegatingStreamObserver streamObserver) {
-            var questionnaire = new Questionnaire(gameId,
-                List.of("Q1", "Q2"),
-                streamObserver,
-                this);
+            logger.info("Starting questionnaire for game {}", gameId);
+            Questionnaire questionnaire = getQuestionnaire(gameId, streamObserver);
             questionnaires.put(gameId, questionnaire);
+        }
+
+        /**
+         * returns a questionnaire for a given game.
+         * @param gameId Used to find the correct scenario
+         * @param streamObserver The stream used to send questions to the player.
+         * @return a Questionnaire depending on the scenario
+         */
+        private Questionnaire getQuestionnaire(int gameId, DelegatingStreamObserver streamObserver) {
+            // Find current scenario
+            Result<Record> records = jooq.select()
+                .from(Tables.GAMES)
+                .where(Tables.GAMES.ID.eq(gameId))
+                .fetch();
+            List<String> scenarios = records.getValues(Tables.GAMES.SCENARIO);
+
+            // Get matching questionnaire
+            List<String> questions = questionTemplates.get(scenarios.get(0));
+            return new Questionnaire(gameId, questions, streamObserver, this);
         }
 
         public void endQuestionnaire(int game) {
@@ -363,7 +387,7 @@ public class Broker {
             public Questionnaire(int gameId,
                                  List<String> questions,
                                  DelegatingStreamObserver stream,
-                                 BrokerImpl brokerImpl ) {
+                                 BrokerImpl brokerImpl) {
                 this.questions = questions;
                 this.stream = stream;
                 this.gameId = gameId;
@@ -377,6 +401,7 @@ public class Broker {
              */
             public void processAnswer(TextMessage request) {
                 var answer = request.getText();
+                // TODO: validate answer
 
                 var record = jooq.newRecord(Questionnaires.QUESTIONNAIRES);
                 record.setAnswer(answer);
@@ -389,6 +414,8 @@ public class Broker {
                 currQuestion += 1;
                 if (currQuestion == questions.size()) {
                     brokerImpl.endQuestionnaire(gameId);
+                } else {
+                    sendQuestion(questions.get(currQuestion));
                 }
             }
 
@@ -406,11 +433,13 @@ public class Broker {
             int id = request.getGameId();
             if (!questionnaires.containsKey(id)) {
                 // ignore text messages if no questionnaire is running
+                responseObserver.onNext(null);
                 responseObserver.onCompleted();
                 return;
             }
             try {
                 questionnaires.get(id).processAnswer(request);
+                responseObserver.onNext(null);
                 responseObserver.onCompleted();
             } catch (Exception e) {
                 responseObserver.onError(e);
@@ -451,6 +480,71 @@ public class Broker {
         glr.setMessage(String.format("Status of game %d changed to %s", gameid, status.toString()));
         glr.setTimestamp(now());
         glr.store();
+    }
+
+    /**
+     * Loads questionnaires for all scenarios defined in the configuration that have one.
+     */
+    private void initQuestionnaires(List<String> confScenarios) {
+        questionTemplates = new HashMap<>();
+        List<String> questionnairesInResources = null;
+        // Check availability of questionnaires
+        try (ScanResult scanResult = new ClassGraph()
+            .whitelistPaths("de/saar/minecraft/questionnaires")
+            .scan()) {
+            questionnairesInResources = scanResult.getAllResources()
+                .filter(x -> x.getURL().getFile().endsWith(".txt"))
+                .getPaths()
+                .stream()
+                .map(x -> x.substring(x.lastIndexOf("/") + 1, x.length() - 4))
+                .collect(Collectors.toList());
+        } catch (Exception exception) {
+            logger.warn("Could not read questionnaires from resources, not performing sanity checks.");
+        }
+        // Checks
+        if (questionnairesInResources == null) {
+            throw(new RuntimeException("No questionnaires available"));
+        }
+        if (! questionnairesInResources.containsAll(confScenarios)) {
+            confScenarios.removeAll(questionnairesInResources);
+            logger.error("You defined scenarios in the configuration without a questionnaire "
+                + confScenarios
+            );
+            throw(new RuntimeException("Missing Questionnaires: " + String.join(", ", confScenarios)));
+        }
+        if (confScenarios.isEmpty()) {
+            logger.warn("No scenarios defined in the broker configuration. "
+                + "Will load all questionnaires");
+        } else {
+            questionnairesInResources.stream().filter(confScenarios::contains);
+            logger.info("Start loading defined questionnaires.");
+        }
+        // Load questionnaires
+        for (String filename: questionnairesInResources) {
+            try {
+                String path = String.format("/de/saar/minecraft/questionnaires/%s.txt", filename);
+                InputStream in = Broker.class.getResourceAsStream(path);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                List<String> current = new ArrayList<>();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    // Skip empty lines
+                    if (line.strip().length() > 0) {
+                        current.add(line);
+                    }
+                    logger.info("Line: {}", line);
+                }
+                reader.close();
+                questionTemplates.put(filename, current);
+            } catch (IOException e) {
+                // TODO
+                e.printStackTrace();
+            }
+        }
+
+        logger.info("Using questionnaires for these scenarios: {}",
+            String.join(" ", questionnairesInResources));
+
     }
 
     /**

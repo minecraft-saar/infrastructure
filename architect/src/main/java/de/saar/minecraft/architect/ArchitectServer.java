@@ -232,7 +232,16 @@ public class ArchitectServer {
      * Starts an architect server.
      */
     public static void main(String[] args) throws IOException, InterruptedException {
-        ArchitectFactory factory = DummyArchitect::new;
+        ArchitectFactory factory;
+        if (args.length == 2) {
+            int waitTime = Integer.parseInt(args[0]);
+            boolean endAfterFirstBlock = Boolean.parseBoolean(args[1]);
+            logger.info("waitTime: {}", waitTime);
+            logger.info("endAfterFirstBlock: {}", endAfterFirstBlock);
+            factory = () -> new DummyArchitect(waitTime, endAfterFirstBlock);
+        } else {
+            factory = DummyArchitect::new;
+        }
         ArchitectServer server = new ArchitectServer(10000, factory);
         server.start();
         server.blockUntilShutdown();
