@@ -71,6 +71,8 @@ public class Broker {
     private List<ArchitectConnection> architectConnections = new ArrayList<>();
 
     private HashMap<Integer, ArchitectConnection> runningGames = new HashMap<>();
+    private ConcurrentHashMap<Integer, Questionnaire> questionnaires = new ConcurrentHashMap<>();
+
 
     private static class ArchitectConnection {
         public ArchitectGrpc.ArchitectStub nonblockingArchitectStub;
@@ -188,13 +190,6 @@ public class Broker {
 
     private class BrokerImpl extends BrokerGrpc.BrokerImplBase {
 
-        private ConcurrentHashMap<Integer, Questionnaire> questionnaires;
-
-        public BrokerImpl() {
-            super();
-            this.questionnaires = new ConcurrentHashMap<>();
-        }
-
         /**
          * Handles the start of a game. Creates a record for this game in the database
          * and returns a unique game ID to the client.
@@ -238,47 +233,11 @@ public class Broker {
             setGameStatus(id, GameStatus.Running);
         }
 
-        /**
-         * initializes a new Questionnaire object that takes
-         * over asking and storing answers to questions.
-         * @param gameId The id of the game for which the questionnaire is needed.
-         * @param streamObserver The stream used to send questions to the player.
-         */
-        public void startQuestionnaire(int gameId,
-                    DelegatingStreamObserver streamObserver) {
-            logger.info("Starting questionnaire for game {}", gameId);
-            Questionnaire questionnaire = getQuestionnaire(gameId, streamObserver);
-            questionnaires.put(gameId, questionnaire);
-        }
-
-        /**
-         * returns a questionnaire for a given game.
-         * @param gameId Used to find the correct scenario
-         * @param streamObserver The stream used to send questions to the player.
-         * @return a Questionnaire depending on the scenario
-         */
-        private Questionnaire getQuestionnaire(int gameId, DelegatingStreamObserver streamObserver) {
-            // Find current scenario
-            Result<Record> records = jooq.select()
-                .from(Tables.GAMES)
-                .where(Tables.GAMES.ID.eq(gameId))
-                .fetch();
-            List<String> scenarios = records.getValues(Tables.GAMES.SCENARIO);
-
-            // Get matching questionnaire
-            List<String> questions = questionTemplates.get(scenarios.get(0));
-            return new Questionnaire(gameId, questions, streamObserver, this);
-        }
-
-        public void endQuestionnaire(int game) {
-
-        }
-
         @Override
         public void getMessageChannel(GameId request,
             StreamObserver<TextMessage> responseObserver) {
             int id = request.getId();
-            var so = new DelegatingStreamObserver<>(id, responseObserver, this);
+            var so = new DelegatingStreamObserver<>(id, responseObserver);
             var architect = getNonblockingArchitect(id);
             if (architect != null) {
                 architect.getMessageChannel(request, so);
@@ -326,9 +285,11 @@ public class Broker {
                 return;
             }
             log(id, request, GameLogsDirection.FromClient);
-            getNonblockingArchitect(id).handleStatusInformation(
-                request, responseObserver
-            );
+            if (!questionnaires.containsKey(id)) {
+                getNonblockingArchitect(id).handleStatusInformation(
+                    request, responseObserver
+                );
+            }
         }
 
         @Override
@@ -340,7 +301,9 @@ public class Broker {
                 return;
             }
             log(id, request, GameLogsDirection.FromClient);
-            getNonblockingArchitect(id).handleBlockPlaced(request, responseObserver);
+            if (!questionnaires.containsKey(id)) {
+                getNonblockingArchitect(id).handleBlockPlaced(request, responseObserver);
+            }
         }
 
         @Override
@@ -352,8 +315,10 @@ public class Broker {
                 return;
             }
             log(id, request, GameLogsDirection.FromClient);
-            getNonblockingArchitect(id).handleBlockDestroyed(
-                request, responseObserver);
+            if (!questionnaires.containsKey(id)) {
+                getNonblockingArchitect(id).handleBlockDestroyed(
+                    request, responseObserver);
+            }
         }
 
         @Override
@@ -376,57 +341,6 @@ public class Broker {
             responseObserver.onCompleted();
         }
 
-        private class Questionnaire {
-            public final int gameId;
-            public List<String> questions;
-            public final DelegatingStreamObserver stream;
-            private int currQuestion = 0;
-            private BrokerImpl brokerImpl;
-            public List<String> answers = new ArrayList<>();
-
-            public Questionnaire(int gameId,
-                                 List<String> questions,
-                                 DelegatingStreamObserver stream,
-                                 BrokerImpl brokerImpl) {
-                this.questions = questions;
-                this.stream = stream;
-                this.gameId = gameId;
-                this.brokerImpl = brokerImpl;
-                sendQuestion(questions.get(currQuestion));
-            }
-
-            /**
-             * processes a text message sent by the player.
-             * @param request The message object forwarded by the BrokerImpl.
-             */
-            public void processAnswer(TextMessage request) {
-                var answer = request.getText();
-                // TODO: validate answer
-
-                var record = jooq.newRecord(Questionnaires.QUESTIONNAIRES);
-                record.setAnswer(answer);
-                record.setGameid(gameId);
-                record.setQuestion(questions.get(currQuestion));
-                record.setTimestamp(now());
-                record.store();
-
-                answers.add(answer);
-                currQuestion += 1;
-                if (currQuestion == questions.size()) {
-                    brokerImpl.endQuestionnaire(gameId);
-                } else {
-                    sendQuestion(questions.get(currQuestion));
-                }
-            }
-
-            private void sendQuestion(String question) {
-                stream.onNext(TextMessage.newBuilder()
-                    .setGameId(gameId)
-                    .setText(question)
-                    .build());
-            }
-        }
-
         @Override
         public void handleTextMessage(TextMessage request,
                                       StreamObserver<None> responseObserver) {
@@ -438,7 +352,7 @@ public class Broker {
                 return;
             }
             try {
-                questionnaires.get(id).processAnswer(request);
+                questionnaires.get(id).onNext(request);
                 responseObserver.onNext(null);
                 responseObserver.onCompleted();
             } catch (Exception e) {
@@ -613,14 +527,11 @@ public class Broker {
                                           implements StreamObserver<E> {
         private StreamObserver<E> toClient;
         private int gameId;
-        private BrokerImpl broker;
 
         public DelegatingStreamObserver(int gameId,
-                                        StreamObserver<E> toClient,
-                                        BrokerImpl broker) {
+                                        StreamObserver<E> toClient) {
             this.toClient = toClient;
             this.gameId = gameId;
-            this.broker = broker;
         }
 
         @Override
@@ -628,7 +539,7 @@ public class Broker {
             if (value instanceof TextMessage) {
                 var v = (TextMessage) value;
                 if (v.getNewGameState() == NewGameState.SuccessfullyFinished) {
-                    broker.startQuestionnaire(gameId, this);
+                    startQuestionnaire(gameId, this);
                 }
             }
             toClient.onNext(value);
@@ -745,4 +656,105 @@ public class Broker {
         return null;
     }
 
+    /**
+     * initializes a new Questionnaire object that takes
+     * over asking and storing answers to questions.
+     * @param gameId The id of the game for which the questionnaire is needed.
+     * @param streamObserver The stream used to send questions to the player.
+     */
+    public void startQuestionnaire(int gameId,
+        DelegatingStreamObserver streamObserver) {
+        logger.info("Starting questionnaire for game {}", gameId);
+        Questionnaire questionnaire = getQuestionnaire(gameId, streamObserver);
+        questionnaires.put(gameId, questionnaire);
+    }
+
+    /**
+     * returns a questionnaire for a given game.
+     * @param gameId Used to find the correct scenario
+     * @param streamObserver The stream used to send questions to the player.
+     * @return a Questionnaire depending on the scenario
+     */
+    private Questionnaire getQuestionnaire(int gameId, DelegatingStreamObserver streamObserver) {
+        // Find current scenario
+        Result<Record> records = jooq.select()
+            .from(Tables.GAMES)
+            .where(Tables.GAMES.ID.eq(gameId))
+            .fetch();
+        List<String> scenarios = records.getValues(Tables.GAMES.SCENARIO);
+
+        // Get matching questionnaire
+        List<String> questions = questionTemplates.get(scenarios.get(0));
+        return new Questionnaire(gameId, questions, streamObserver);
+    }
+
+    public void endQuestionnaire(int game) {
+
+    }
+
+    /**
+     * A Questionnaire is created once the player finishes their game.
+     * It sends initial inforamation and receives all text messages written by the player
+     * from that point onwards.
+     */
+    private class Questionnaire {
+
+        public final int gameId;
+        public List<String> questions;
+        public final DelegatingStreamObserver<TextMessage> stream;
+        private int currQuestion = 0;
+        public List<String> answers = new ArrayList<>();
+
+        public Questionnaire(int gameId,
+                             List<String> questions,
+                             DelegatingStreamObserver<TextMessage> stream) {
+            this.questions = questions;
+            this.stream = stream;
+            this.gameId = gameId;
+            new Thread(() -> {
+                try {
+                    Thread.sleep(4000);
+                    sendQuestion("We would like you to answer a few questions.");
+                    sendQuestion("You can answer them by pressing \"t\","
+                        + " typing the answer and then pressing return.");
+                    Thread.sleep(4000);
+                    sendQuestion(questions.get(currQuestion));
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }).start();
+            sendQuestion(questions.get(currQuestion));
+        }
+
+        /**
+         * processes a text message sent by the player.
+         * @param request The message object forwarded by the BrokerImpl.
+         */
+        public void onNext(TextMessage request) {
+            var answer = request.getText();
+            // TODO: validate answer
+
+            var record = jooq.newRecord(Questionnaires.QUESTIONNAIRES);
+            record.setAnswer(answer);
+            record.setGameid(gameId);
+            record.setQuestion(questions.get(currQuestion));
+            record.setTimestamp(now());
+            record.store();
+
+            answers.add(answer);
+            currQuestion += 1;
+            if (currQuestion == questions.size()) {
+               sendQuestion("Thank you for your time! you can hang around or disconnect now.");
+            } else {
+                sendQuestion(questions.get(currQuestion));
+            }
+        }
+
+        private void sendQuestion(String question) {
+            stream.onNext(TextMessage.newBuilder()
+                .setGameId(gameId)
+                .setText(question)
+                .build());
+        }
+    }
 }
