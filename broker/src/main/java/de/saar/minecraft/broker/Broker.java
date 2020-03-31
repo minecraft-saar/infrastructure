@@ -723,7 +723,6 @@ public class Broker {
                     e.printStackTrace();
                 }
             }).start();
-            sendQuestion(questions.get(currQuestion));
         }
 
         /**
