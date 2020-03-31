@@ -35,7 +35,7 @@ public class IntegrationTest {
 
         BrokerConfiguration config = new BrokerConfiguration();
         config.setPort(BROKER_PORT);
-        config.setScenarios(List.of("bridge"));
+        config.setScenarios(List.of("house"));
         var addr = new BrokerConfiguration.ArchitectServerAddress("localhost", ARCHITECT_PORT);
 
         config.setArchitectServers(List.of(addr));
@@ -100,7 +100,7 @@ public class IntegrationTest {
         client.sendBlockPlacedMessage(gameId, 1,1,1);
         client.sendBlockPlacedMessage(gameId, 1,1,1);
 
-        boolean messageReceived = latch.await(2000, TimeUnit.MILLISECONDS);
+        boolean messageReceived = latch.await(10000, TimeUnit.MILLISECONDS);
 
         assert messageReceived;
     }
