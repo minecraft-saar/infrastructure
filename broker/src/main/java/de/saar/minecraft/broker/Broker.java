@@ -246,6 +246,14 @@ public class Broker {
             }
         }
 
+        @Override
+        public void playerReady(GameId request, StreamObserver<None> responseObserver) {
+            var architect = getBlockingArchitect(request.getId());
+            architect.playerReady(request);
+            responseObserver.onNext(None.getDefaultInstance());
+            responseObserver.onCompleted();
+        }
+
         private StatusException createNoSuchIdException(int id) {
             return new StatusException(
                 Status

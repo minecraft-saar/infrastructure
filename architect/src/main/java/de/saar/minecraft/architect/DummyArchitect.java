@@ -35,6 +35,11 @@ public class DummyArchitect extends AbstractArchitect {
     }
 
     @Override
+    public void playerReady() {
+
+    }
+
+    @Override
     public void handleStatusInformation(StatusMessage request) {
         int x = request.getX();
         double xdir = request.getXDirection();

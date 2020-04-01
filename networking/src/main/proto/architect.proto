@@ -13,6 +13,7 @@ service Architect {
     rpc Hello (None) returns (ArchitectInformation) {}
     rpc StartGame (WorldSelectMessage) returns (None) {}
     rpc GetMessageChannel (GameId) returns (stream TextMessage) {}
+    rpc PlayerReady (GameId) returns (None) {}
     rpc EndGame (GameId) returns (None) {}
     rpc EndAllGames(None) returns (None) {}
     rpc HandleStatusInformation (StatusMessage) returns (None) {}

@@ -115,10 +115,28 @@ public class ArchitectServer {
             arch.initialize(request);
             runningArchitects.put(request.getGameId(), arch);
 
-            responseObserver.onNext(None.newBuilder().build());
+            responseObserver.onNext(None.getDefaultInstance());
             responseObserver.onCompleted();
 
             logger.info("architect for id {}: {}", request.getGameId(), arch);
+        }
+
+        @Override
+        public void playerReady(GameId request, StreamObserver<None> responseObserver) {
+            int id = request.getId();
+            var architect = runningArchitects.get(id);
+            if (architect != null) {
+                architect.playerReady();
+                responseObserver.onNext(None.getDefaultInstance());
+                responseObserver.onCompleted();
+            } else {
+                Status status = Status.newBuilder()
+                    .setCode(Code.INVALID_ARGUMENT.getNumber())
+                    .setMessage("No architect running for game ID " + request.getId())
+                    .build();
+                responseObserver.onError(StatusProto.toStatusRuntimeException(status));
+                logger.warn("could not find architect for message channel");
+            }
         }
 
         @Override
