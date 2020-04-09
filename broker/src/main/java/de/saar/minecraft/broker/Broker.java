@@ -751,7 +751,11 @@ public class Broker {
             answers.add(answer);
             currQuestion += 1;
             if (currQuestion == questions.size()) {
-               sendQuestion("Thank you for your time! you can hang around or disconnect now.");
+                stream.onNext(TextMessage.newBuilder()
+                    .setGameId(gameId)
+                    .setText("Thank you for your time! you can hang around or disconnect now.")
+                    .setNewGameState(NewGameState.QuestionnaireFinished)
+                    .build());
             } else {
                 sendQuestion(questions.get(currQuestion));
             }

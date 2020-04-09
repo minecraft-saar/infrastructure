@@ -30,7 +30,7 @@ public class IntegrationTest {
      */
     @Before
     public void setup() throws IOException {
-        architectServer = new ArchitectServer(ARCHITECT_PORT, () -> new DummyArchitect(0, true));
+        architectServer = new ArchitectServer(ARCHITECT_PORT, () -> new DummyArchitect(0, true, 1));
         architectServer.start();
 
         BrokerConfiguration config = new BrokerConfiguration();
@@ -131,6 +131,7 @@ public class IntegrationTest {
                 }
             }
         );
+
 
         client.sendStatusMessage(gameId, 1, 2, 3, 0.4, 0.0, -0.7);
 

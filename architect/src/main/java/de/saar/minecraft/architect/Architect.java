@@ -26,6 +26,7 @@ public interface Architect {
     public void initialize(WorldSelectMessage request);
 
     public void playerReady();
+
     /**
      * Called when a game is finished.  Should de-initialize everything
      * and close the messageChannel.

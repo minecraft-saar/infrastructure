@@ -10,19 +10,22 @@ import de.saar.minecraft.shared.WorldSelectMessage;
 public class DummyArchitect extends AbstractArchitect {
     private int waitTime;
     private int statusIteration;
+    private int responseFrequency;
 
     private final boolean endAfterFirstBlock;
 
-    public DummyArchitect(int waitTime, boolean endAfterFirstBlock) {
+    public DummyArchitect(int waitTime, boolean endAfterFirstBlock, int responseFrequency) {
         this.endAfterFirstBlock = endAfterFirstBlock;
         this.waitTime = waitTime;
         this.statusIteration = 0;
+        this.responseFrequency = responseFrequency;
     }
 
     public DummyArchitect(int waitTime) {
         this.waitTime = waitTime;
         this.endAfterFirstBlock = false;
         this.statusIteration = 0;
+        this.responseFrequency = 1;
     }
 
     public DummyArchitect() {
@@ -46,8 +49,7 @@ public class DummyArchitect extends AbstractArchitect {
         double xdir = request.getXDirection();
 
         // send only for every every twentieth status update a message
-        if (statusIteration < 19) {
-            statusIteration++;
+        if (++statusIteration < responseFrequency) {
             return;
         }
         statusIteration = 0;

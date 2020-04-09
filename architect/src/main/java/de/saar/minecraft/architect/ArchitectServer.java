@@ -251,12 +251,13 @@ public class ArchitectServer {
      */
     public static void main(String[] args) throws IOException, InterruptedException {
         ArchitectFactory factory;
-        if (args.length == 2) {
+        if (args.length == 3) {
             int waitTime = Integer.parseInt(args[0]);
             boolean endAfterFirstBlock = Boolean.parseBoolean(args[1]);
+            int responseFrequency = Integer.parseInt(args[2]);
             logger.info("waitTime: {}", waitTime);
             logger.info("endAfterFirstBlock: {}", endAfterFirstBlock);
-            factory = () -> new DummyArchitect(waitTime, endAfterFirstBlock);
+            factory = () -> new DummyArchitect(waitTime, endAfterFirstBlock, responseFrequency);
         } else {
             factory = DummyArchitect::new;
         }

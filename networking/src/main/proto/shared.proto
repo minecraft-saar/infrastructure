@@ -24,6 +24,7 @@ enum NewGameState {
     NotChanged = 0;
     TutorialFinished = 1;
     SuccessfullyFinished = 2;
+    QuestionnaireFinished = 3;
 };
 
 message TextMessage {
