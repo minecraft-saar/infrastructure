@@ -353,6 +353,7 @@ public class Broker {
         public void handleTextMessage(TextMessage request,
                                       StreamObserver<None> responseObserver) {
             int id = request.getGameId();
+            log(id, request, GameLogsDirection.FromClient);
             if (!questionnaires.containsKey(id)) {
                 // ignore text messages if no questionnaire is running
                 responseObserver.onNext(null);
