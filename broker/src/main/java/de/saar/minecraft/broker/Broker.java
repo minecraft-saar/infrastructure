@@ -460,8 +460,8 @@ public class Broker {
                 reader.close();
                 questionTemplates.put(filename, current);
             } catch (IOException e) {
-                // TODO
-                e.printStackTrace();
+                logger.error("Could not load questionnaire {}", filename);
+                throw(new RuntimeException("Could not load questionnaire: " + filename));
             }
         }
 
@@ -703,7 +703,7 @@ public class Broker {
 
     /**
      * A Questionnaire is created once the player finishes their game.
-     * It sends initial inforamation and receives all text messages written by the player
+     * It sends initial information and receives all text messages written by the player
      * from that point onwards.
      */
     private class Questionnaire {
@@ -712,7 +712,8 @@ public class Broker {
         public List<String> questions;
         public final DelegatingStreamObserver<TextMessage> stream;
         private int currQuestion = 0;
-        public List<String> answers = new ArrayList<>();
+//        public List<String> answers = new ArrayList<>();  // not used later
+        private AnswerThread currThread;
 
         public Questionnaire(int gameId,
                              List<String> questions,
@@ -723,11 +724,11 @@ public class Broker {
             new Thread(() -> {
                 try {
                     Thread.sleep(4000);
-                    sendQuestion("We would like you to answer a few questions.");
-                    sendQuestion("You can answer them by pressing \"t\","
+                    sendText("We would like you to answer a few questions.");
+                    sendText("You can answer them by pressing \"t\","
                         + " typing the answer and then pressing return.");
                     Thread.sleep(4000);
-                    sendQuestion(questions.get(currQuestion));
+                    sendNextQuestion();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -741,6 +742,7 @@ public class Broker {
         public void onNext(TextMessage request) {
             var answer = request.getText();
             // TODO: validate answer
+            currThread.interrupt();
 
             var record = jooq.newRecord(Questionnaires.QUESTIONNAIRES);
             record.setAnswer(answer);
@@ -749,7 +751,7 @@ public class Broker {
             record.setTimestamp(now());
             record.store();
 
-            answers.add(answer);
+//            answers.add(answer);
             currQuestion += 1;
             if (currQuestion == questions.size()) {
                 stream.onNext(TextMessage.newBuilder()
@@ -758,14 +760,35 @@ public class Broker {
                     .setNewGameState(NewGameState.QuestionnaireFinished)
                     .build());
             } else {
-                sendQuestion(questions.get(currQuestion));
+                sendNextQuestion();
             }
         }
 
-        private void sendQuestion(String question) {
+        class AnswerThread extends Thread {
+
+            public void run() {
+                while(true) {  // TODO: is there a maximum of attempts?
+                    sendText(questions.get(currQuestion));
+                    try {
+                        Thread.sleep(30000);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                    sendText("You can answer them by pressing \"t\", "
+                        + "typing the answer and then pressing return.");
+                }
+            }
+        }
+
+        private void sendNextQuestion() {
+            currThread = new AnswerThread();
+            currThread.start();
+        }
+
+        private void sendText(String text) {
             stream.onNext(TextMessage.newBuilder()
                 .setGameId(gameId)
-                .setText(question)
+                .setText(text)
                 .build());
         }
     }
