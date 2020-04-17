@@ -11,6 +11,7 @@ import com.sun.net.httpserver.HttpHandler;
 import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
+import de.saar.minecraft.broker.db.tables.records.QuestionnairesRecord;
 import de.saar.minecraft.util.Util;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -25,7 +26,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jooq.Result;
 
-//TODO: add Table Questionnaires
 
 public class HttpServer {
     private static Logger logger = LogManager.getLogger(HttpServer.class);
@@ -63,6 +63,7 @@ public class HttpServer {
 
         ret.add("index.html", slurp("index.html"));
         ret.add("showgame.html", slurp("showgame.html"));
+        ret.add("showquestionnaire.html", slurp("showquestionnaire.html"));
 
         return ret;
     }
@@ -83,6 +84,8 @@ public class HttpServer {
                 response = createOverviewResponse();
             } else if ("/showgame.html".equals(path)) {
                 response = createGameResponse(t);
+            } else if ("/showquestionnaire.html".equals(path)) {
+                response = createQuestionnaireResponse(t);
             } else {
                 // undefined URL
                 response = "404 (not found)";
@@ -150,6 +153,42 @@ public class HttpServer {
                         response = engine.process("showgame.html", new MapBindings(bindings));
                     } catch (CarrotException e) {
                         response = "An error occurred when expanding showgame.html: "
+                            + e.toString();
+                    }
+                }
+            }
+            return response;
+        }
+
+        private String createQuestionnaireResponse(HttpExchange t) {
+            String response;
+            if (t.getRequestURI().getQuery() == null) {
+                response = "No game ID specified in HTTP query.";
+            } else {
+                Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
+                if (!params.containsKey("id")) {
+                    response = "No game ID specified in HTTP query.";
+                } else {
+                    int gameid = Integer.parseInt(params.get("id"));
+                    GamesRecord game = broker.getJooq()
+                        .selectFrom(Tables.GAMES)
+                        .where(Tables.GAMES.ID.equal(gameid))
+                        .fetchOne();
+
+                    Result<QuestionnairesRecord> questionnaire = broker.getJooq()
+                        .selectFrom(Tables.QUESTIONNAIRES)
+                        .where(Tables.QUESTIONNAIRES.GAMEID.equal(gameid))
+                        .orderBy(Tables.QUESTIONNAIRES.ID.asc())
+                        .fetch();
+
+                    Map<String, Object> bindings = new TreeMap<>();
+                    bindings.put("config", broker.getConfig());
+                    bindings.put("game", game);
+                    bindings.put("questionnaire", questionnaire);
+                    try {
+                        response = engine.process("showquestionnaire.html", new MapBindings(bindings));
+                    } catch (CarrotException e) {
+                        response = "An error occurred when expanding showquestionnaire.html: "
                             + e.toString();
                     }
                 }
