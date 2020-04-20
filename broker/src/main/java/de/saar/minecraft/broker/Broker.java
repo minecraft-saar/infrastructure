@@ -1,5 +1,6 @@
 package de.saar.minecraft.broker;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
@@ -229,8 +230,6 @@ public class Broker {
             // tell client the game ID and selected world
             responseObserver.onNext(worldSelectMessage);
             responseObserver.onCompleted();
-
-            setGameStatus(id, GameStatus.Running);
         }
 
         @Override
@@ -248,6 +247,8 @@ public class Broker {
 
         @Override
         public void playerReady(GameId request, StreamObserver<None> responseObserver) {
+            int id = request.getId();
+            setGameStatus(id, GameStatus.Running);
             var architect = getBlockingArchitect(request.getId());
             architect.playerReady(request);
             responseObserver.onNext(None.getDefaultInstance());
@@ -550,6 +551,11 @@ public class Broker {
                 if (v.getNewGameState() == NewGameState.SuccessfullyFinished) {
                     startQuestionnaire(gameId, this);
                 }
+                // Text message for logging purposes only, log and don't forward.
+                if (v.getForLogging()) {
+                    log(gameId, v.getText(), v.getLogType(), GameLogsDirection.LogFromArchitect);
+                    return;
+                }
             }
             toClient.onNext(value);
             log(gameId, value, GameLogsDirection.PassToClient);
@@ -575,12 +581,24 @@ public class Broker {
      * Logs game information to the database.
      */
     private void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
-        String messageStr = pr.printToString(message);
+        String messageStr = "";
+        try {
+            messageStr = com.google.protobuf.util.JsonFormat.printer().print(message);
+        } catch (InvalidProtocolBufferException e) {
+            logger.error("could convert message to json: " + message);
+        }
+        log(gameid, messageStr, message.getClass().getSimpleName(), direction);
+    }
+
+    private void log(int gameid,
+        String messageStr,
+        String messageType,
+        GameLogsDirection direction) {
 
         GameLogsRecord rec = jooq.newRecord(Tables.GAME_LOGS);
         rec.setGameid(gameid);
         rec.setDirection(direction);
-        rec.setMessageType(message.getClass().getSimpleName());
+        rec.setMessageType(messageType);
         rec.setMessage(messageStr);
         rec.setTimestamp(now());
         rec.store();
@@ -745,6 +763,9 @@ public class Broker {
             currThread.interrupt();
 
             var record = jooq.newRecord(Questionnaires.QUESTIONNAIRES);
+            if (answer.length() > 4999) {
+                answer = answer.substring(0, 4999);
+            }
             record.setAnswer(answer);
             record.setGameid(gameId);
             record.setQuestion(questions.get(currQuestion));

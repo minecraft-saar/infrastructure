@@ -3,9 +3,9 @@ create schema if not exists MINECRAFT;
 CREATE TABLE if not exists MINECRAFT.GAME_LOGS (
   id int(11) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
   gameid int(11),
-  direction varchar(100),
-  message_type varchar(100),
-  message varchar(500),
+  direction varchar(50),
+  message_type varchar(50),
+  message mediumtext,
   timestamp timestamp
 );
 

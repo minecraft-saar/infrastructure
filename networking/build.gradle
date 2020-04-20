@@ -3,8 +3,8 @@ plugins {
 	id 'com.google.protobuf' version '0.8.8'
 }
 
-def grpcVersion = '1.23.0'
-def protocVersion = '3.9.0'
+def grpcVersion = '1.28.1'
+def protocVersion = '3.11.0'
 
 dependencies {
     api "io.grpc:grpc-protobuf:${grpcVersion}"

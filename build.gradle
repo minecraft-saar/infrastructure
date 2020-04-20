@@ -35,6 +35,7 @@ allprojects {
         mavenLocal()
     }
     scmVersion {
+        ignoreUncommittedChanges = false
         tag {
             prefix = 'release'
         }
@@ -113,7 +114,9 @@ subprojects {
     }
     
     dependencies {
-        compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.8.2'
+        implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.13.1'
+        implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.13.1'
+        implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.13.1'
         compileOnly "javax.annotation:javax.annotation-api:1.2"
         testImplementation "junit:junit:4.12"
         testImplementation "org.mockito:mockito-core:2.25.1"

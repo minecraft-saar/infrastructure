@@ -1,16 +1,15 @@
 package de.saar.minecraft.architect;
 
-import de.saar.minecraft.shared.BlockDestroyedMessage;
-import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.NewGameState;
-import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
-import de.saar.minecraft.shared.WorldSelectMessage;
 import io.grpc.stub.StreamObserver;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public abstract class AbstractArchitect implements Architect {
     protected StreamObserver<TextMessage> messageChannel;
     protected int gameId;
+    private static Logger logger = LogManager.getLogger(AbstractArchitect.class);
 
     @Override
     public void shutdown() {
@@ -26,7 +25,7 @@ public abstract class AbstractArchitect implements Architect {
 
     @Override
     public void setMessageChannel(StreamObserver<TextMessage> messageChannel) {
-        System.err.println("setting message channel");
+        logger.debug("setting message channel");
         this.messageChannel = messageChannel;
     }
 
@@ -46,7 +45,19 @@ public abstract class AbstractArchitect implements Architect {
             .setText(text)
             .setNewGameState(newGameState)
             .build();
-        synchronized (messageChannel) {
+        synchronized (this) {
+            messageChannel.onNext(message);
+        }
+    }
+
+    protected void log(String logMessage, String logType) {
+        TextMessage message = TextMessage.newBuilder()
+            .setGameId(gameId)
+            .setText(logMessage)
+            .setForLogging(true)
+            .setLogType(logType)
+            .build();
+        synchronized (this) {
             messageChannel.onNext(message);
         }
     }

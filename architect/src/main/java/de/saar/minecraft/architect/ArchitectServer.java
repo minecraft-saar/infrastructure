@@ -112,13 +112,13 @@ public class ArchitectServer {
         @Override
         public void startGame(WorldSelectMessage request, StreamObserver<None> responseObserver) {
             Architect arch = factory.build();
-            arch.initialize(request);
             runningArchitects.put(request.getGameId(), arch);
 
             responseObserver.onNext(None.getDefaultInstance());
             responseObserver.onCompleted();
-
-            logger.info("architect for id {}: {}", request.getGameId(), arch);
+            // perfom expensive initialization after letting the broker return.
+            arch.initialize(request);
+            logger.info("architect initialized for id {}: {}", request.getGameId(), arch);
         }
 
         @Override
@@ -126,9 +126,9 @@ public class ArchitectServer {
             int id = request.getId();
             var architect = runningArchitects.get(id);
             if (architect != null) {
-                architect.playerReady();
                 responseObserver.onNext(None.getDefaultInstance());
                 responseObserver.onCompleted();
+                architect.playerReady();
             } else {
                 Status status = Status.newBuilder()
                     .setCode(Code.INVALID_ARGUMENT.getNumber())
