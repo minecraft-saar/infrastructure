@@ -19,6 +19,8 @@ dependencies {
     jooqRuntime "mysql:mysql-connector-java:5.1.6"
     
     implementation 'org.apache.commons:commons-collections4:4.4'
+    implementation 'org.apache.commons:commons-text:1.4'
+    implementation 'com.eclipsesource.minimal-json:minimal-json:0.9.4'
     implementation 'com.h2database:h2:1.4.199'
     
     // YAML

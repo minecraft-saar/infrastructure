@@ -6,12 +6,15 @@ import au.com.codeka.carrot.Configuration;
 import au.com.codeka.carrot.bindings.MapBindings;
 import au.com.codeka.carrot.resource.MemoryResourceLocator;
 import au.com.codeka.carrot.resource.ResourceLocator;
+import com.eclipsesource.json.Json;
+import com.eclipsesource.json.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.broker.db.tables.records.QuestionnairesRecord;
+import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.util.Util;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -22,10 +25,10 @@ import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jooq.Result;
-
 
 public class HttpServer {
     private static Logger logger = LogManager.getLogger(HttpServer.class);
@@ -144,6 +147,16 @@ public class HttpServer {
                         .orderBy(Tables.GAME_LOGS.ID.asc())
                         .fetch();
 
+                    // escape Textmessages for html
+                    for (GameLogsRecord entry: gameLog) {
+                        if (entry.getMessageType().equals(TextMessage.class.getSimpleName())) {
+                            JsonObject object = Json.parse(entry.getMessage()).asObject();
+                            String text = object.get("text").asString();
+                            object.set("text", StringEscapeUtils.escapeHtml4(text));
+                            entry.setMessage(object.toString());
+                        }
+                    }
+
                     Map<String, Object> bindings = new TreeMap<>();
                     bindings.put("config", broker.getConfig());
                     bindings.put("game", game);
@@ -181,12 +194,18 @@ public class HttpServer {
                         .orderBy(Tables.QUESTIONNAIRES.ID.asc())
                         .fetch();
 
+                    // escape for html
+                    for (QuestionnairesRecord row: questionnaire) {
+                        row.setQuestion(StringEscapeUtils.escapeHtml4(row.getQuestion()));
+                        row.setAnswer(StringEscapeUtils.escapeHtml4(row.getAnswer()));
+                    }
                     Map<String, Object> bindings = new TreeMap<>();
                     bindings.put("config", broker.getConfig());
                     bindings.put("game", game);
                     bindings.put("questionnaire", questionnaire);
                     try {
-                        response = engine.process("showquestionnaire.html", new MapBindings(bindings));
+                        response = engine.process("showquestionnaire.html",
+                                                  new MapBindings(bindings));
                     } catch (CarrotException e) {
                         response = "An error occurred when expanding showquestionnaire.html: "
                             + e.toString();

@@ -730,7 +730,6 @@ public class Broker {
         public List<String> questions;
         public final DelegatingStreamObserver<TextMessage> stream;
         private int currQuestion = 0;
-//        public List<String> answers = new ArrayList<>();  // not used later
         private AnswerThread currThread;
 
         public Questionnaire(int gameId,
@@ -772,7 +771,6 @@ public class Broker {
             record.setTimestamp(now());
             record.store();
 
-//            answers.add(answer);
             currQuestion += 1;
             if (currQuestion == questions.size()) {
                 stream.onNext(TextMessage.newBuilder()
@@ -788,7 +786,7 @@ public class Broker {
         class AnswerThread extends Thread {
 
             public void run() {
-                while(true) {  // TODO: is there a maximum of attempts?
+                while (true) {  // TODO: is there a maximum of attempts?
                     sendText(questions.get(currQuestion));
                     try {
                         Thread.sleep(30000);
