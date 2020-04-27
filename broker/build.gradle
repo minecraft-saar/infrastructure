@@ -29,7 +29,7 @@ dependencies {
     // web
     implementation 'au.com.codeka:carrot:2.4.2'
 
-    compile 'de.saar.minecraft:shared-resources:1.1.10'
+    compile 'de.saar.minecraft:shared-resources:1.1.14'
     compile group: 'io.github.classgraph', name: 'classgraph', version: '4.8.60'
 }
 

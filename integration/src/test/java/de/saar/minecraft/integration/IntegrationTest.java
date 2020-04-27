@@ -80,7 +80,7 @@ public class IntegrationTest {
             public void onNext(TextMessage value) {
                 var message = value.getText();
                 System.out.print("Client got text message: " + message + "\n");
-                if (message.equals("This is the first question")) {
+                if (message.equals("Overall, the system gave me good instructions.")) {
                     latch.countDown();
                 }
             }

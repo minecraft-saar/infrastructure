@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
@@ -88,7 +89,7 @@ public class Broker {
 
     private final TextFormat.Printer pr = TextFormat.printer();
     private List<String> scenarios;
-    private HashMap<String, List<String>> questionTemplates;
+    private HashMap<String, List<Question>> questionTemplates;
 
     /**
      * Builds a new broker from a given configuration.
@@ -449,14 +450,14 @@ public class Broker {
                 String path = String.format("/de/saar/minecraft/questionnaires/%s.txt", filename);
                 InputStream in = Broker.class.getResourceAsStream(path);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-                List<String> current = new ArrayList<>();
+                List<Question> current = new ArrayList<>();
                 String line;
                 while ((line = reader.readLine()) != null) {
                     // Skip empty lines
                     if (line.strip().length() > 0) {
-                        current.add(line);
+                        current.add(new Question(line));
                     }
-                    logger.info("Line: {}", line);
+                    logger.debug("Line: {}", line);
                 }
                 reader.close();
                 questionTemplates.put(filename, current);
@@ -692,7 +693,7 @@ public class Broker {
     public void startQuestionnaire(int gameId,
         DelegatingStreamObserver streamObserver) {
         logger.info("Starting questionnaire for game {}", gameId);
-        Questionnaire questionnaire = getQuestionnaire(gameId, streamObserver);
+        Questionnaire questionnaire = createQuestionnaire(gameId, streamObserver);
         questionnaires.put(gameId, questionnaire);
     }
 
@@ -702,7 +703,7 @@ public class Broker {
      * @param streamObserver The stream used to send questions to the player.
      * @return a Questionnaire depending on the scenario
      */
-    private Questionnaire getQuestionnaire(int gameId, DelegatingStreamObserver streamObserver) {
+    private Questionnaire createQuestionnaire(int gameId, DelegatingStreamObserver streamObserver) {
         // Find current scenario
         Result<Record> records = jooq.select()
             .from(Tables.GAMES)
@@ -711,7 +712,7 @@ public class Broker {
         List<String> scenarios = records.getValues(Tables.GAMES.SCENARIO);
 
         // Get matching questionnaire
-        List<String> questions = questionTemplates.get(scenarios.get(0));
+        List<Question> questions = questionTemplates.get(scenarios.get(0));
         return new Questionnaire(gameId, questions, streamObserver);
     }
 
@@ -727,13 +728,13 @@ public class Broker {
     private class Questionnaire {
 
         public final int gameId;
-        public List<String> questions;
+        public List<Question> questions;
         public final DelegatingStreamObserver<TextMessage> stream;
         private int currQuestion = 0;
         private AnswerThread currThread;
 
         public Questionnaire(int gameId,
-                             List<String> questions,
+                             List<Question> questions,
                              DelegatingStreamObserver<TextMessage> stream) {
             this.questions = questions;
             this.stream = stream;
@@ -744,6 +745,8 @@ public class Broker {
                     sendText("We would like you to answer a few questions.");
                     sendText("You can answer them by pressing \"t\","
                         + " typing the answer and then pressing return.");
+                    sendText("Most questions should be answered with a number between "
+                        + " 1 (completely disagree) and 5 (completely agree)");
                     Thread.sleep(4000);
                     sendNextQuestion();
                 } catch (InterruptedException e) {
@@ -758,6 +761,22 @@ public class Broker {
          */
         public void onNext(TextMessage request) {
             var answer = request.getText();
+            boolean answerIsValid = false;
+            switch (questions.get(currQuestion).type) {
+                case FREE:
+                    answerIsValid = true;
+                    break;
+                case LIKERT:
+                    answerIsValid = Set.of("1","2","3","4","5").contains(answer);
+                    break;
+            }
+
+            if (!answerIsValid) {
+                sendText("please answer with a number between "
+                    + "1 (completely disagree) and 5 (completely agree)");
+                return;
+            }
+
             // TODO: validate answer
             currThread.interrupt();
 
@@ -767,7 +786,7 @@ public class Broker {
             }
             record.setAnswer(answer);
             record.setGameid(gameId);
-            record.setQuestion(questions.get(currQuestion));
+            record.setQuestion(questions.get(currQuestion).toString());
             record.setTimestamp(now());
             record.store();
 
@@ -787,7 +806,7 @@ public class Broker {
 
             public void run() {
                 while (true) {  // TODO: is there a maximum of attempts?
-                    sendText(questions.get(currQuestion));
+                    sendText(questions.get(currQuestion).question);
                     try {
                         Thread.sleep(30000);
                     } catch (InterruptedException e) {
@@ -804,11 +823,12 @@ public class Broker {
             currThread.start();
         }
 
-        private void sendText(String text) {
+        private synchronized void sendText(String text) {
             stream.onNext(TextMessage.newBuilder()
                 .setGameId(gameId)
                 .setText(text)
                 .build());
         }
     }
+
 }
