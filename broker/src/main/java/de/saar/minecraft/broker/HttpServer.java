@@ -8,6 +8,7 @@ import au.com.codeka.carrot.resource.MemoryResourceLocator;
 import au.com.codeka.carrot.resource.ResourceLocator;
 import com.eclipsesource.json.Json;
 import com.eclipsesource.json.JsonObject;
+import com.sun.net.httpserver.BasicAuthenticator;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import de.saar.minecraft.broker.db.Tables;
@@ -31,9 +32,23 @@ import org.apache.logging.log4j.Logger;
 import org.jooq.Result;
 
 public class HttpServer {
-    private static Logger logger = LogManager.getLogger(HttpServer.class);
+    private static final Logger logger = LogManager.getLogger(HttpServer.class);
     private CarrotEngine engine;
     private Broker broker;
+
+    private static class MyAuthenticator extends BasicAuthenticator {
+        String user = System.getProperty("HTTPUser", "mcsaar");
+        String pass = System.getProperty("HTTPPass", "mcsaar");
+
+        MyAuthenticator() {
+            super("enter password");
+        }
+
+        @Override
+        public boolean checkCredentials(String user, String pwd) {
+            return user.equals(this.user) && pwd.equals(this.pass);
+        }
+    }
 
     /**
      * Starts the HTTP server, displaying information about the broker.
@@ -49,7 +64,8 @@ public class HttpServer {
 
         // start HTTP server
         var server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress(port), 0);
-        server.createContext("/", new MyHandler());
+        var context = server.createContext("/", new MyHandler());
+        context.setAuthenticator(new MyAuthenticator());
         server.setExecutor(null); // creates a default executor
         server.start();
 
