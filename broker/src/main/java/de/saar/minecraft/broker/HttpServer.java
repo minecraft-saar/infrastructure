@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -83,6 +84,7 @@ public class HttpServer {
         ret.add("index.html", slurp("index.html"));
         ret.add("showgame.html", slurp("showgame.html"));
         ret.add("showquestionnaire.html", slurp("showquestionnaire.html"));
+        ret.add("showstatistics.html", slurp("showstatistics.html"));
 
         return ret;
     }
@@ -105,6 +107,8 @@ public class HttpServer {
                 response = createGameResponse(t);
             } else if ("/showquestionnaire.html".equals(path)) {
                 response = createQuestionnaireResponse(t);
+            } else if ("/showstatistics.html".equals(path)) {
+                response = createStatisticsResponse(t);
             } else {
                 // undefined URL
                 response = "404 (not found)";
@@ -226,6 +230,59 @@ public class HttpServer {
                         response = "An error occurred when expanding showquestionnaire.html: "
                             + e.toString();
                     }
+                }
+            }
+            return response;
+        }
+
+        public String createStatisticsResponse(HttpExchange t) {
+            String response = checkHttpQuery(t);
+            logger.info("response {}", response);
+            if (response == null) {
+                Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
+                int gameId = Integer.parseInt(params.get("id"));
+
+                GamesRecord game = broker.getJooq()
+                    .selectFrom(Tables.GAMES)
+                    .where(Tables.GAMES.ID.equal(gameId))
+                    .fetchOne();
+
+                Statistics statistics = new Statistics(broker);
+
+                logger.info("game {}", game.getId());
+                int duration = statistics.getExperimentDuration(gameId);
+                Timestamp endTime = statistics.getEndTime(gameId);
+                logger.info("duration {}", duration);
+
+                Map<String, Object> bindings = new TreeMap<>();
+                bindings.put("config", broker.getConfig());
+                bindings.put("game", game);
+                bindings.put("duration", duration);
+                bindings.put("endTime", endTime);
+
+
+                try {
+                    response = engine.process("showstatistics.html",
+                        new MapBindings(bindings));
+                } catch (CarrotException e) {
+                    response = "An error occurred when expanding showstatistics.html: "
+                        + e.toString();
+                }
+            }
+            return response;
+
+        }
+
+        private String checkHttpQuery(HttpExchange t) {
+            String response;
+            if (t.getRequestURI().getQuery() == null) {
+                response = "No game ID specified in HTTP query.";
+            } else {
+                Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
+                if (!params.containsKey("id")) {
+                    response = "No game ID specified in HTTP query.";
+                } else {
+                    response = null;
                 }
             }
             return response;
