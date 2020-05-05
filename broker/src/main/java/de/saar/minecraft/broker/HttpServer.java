@@ -11,6 +11,7 @@ import com.eclipsesource.json.JsonObject;
 import com.sun.net.httpserver.BasicAuthenticator;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import de.saar.minecraft.broker.Statistics.Instruction;
 import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
@@ -25,6 +26,7 @@ import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.sql.Timestamp;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.commons.text.StringEscapeUtils;
@@ -237,7 +239,6 @@ public class HttpServer {
 
         public String createStatisticsResponse(HttpExchange t) {
             String response = checkHttpQuery(t);
-            logger.info("response {}", response);
             if (response == null) {
                 Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
                 int gameId = Integer.parseInt(params.get("id"));
@@ -249,16 +250,16 @@ public class HttpServer {
 
                 Statistics statistics = new Statistics(broker);
 
-                logger.info("game {}", game.getId());
-                int duration = statistics.getExperimentDuration(gameId);
+                long duration = statistics.getExperimentDuration(gameId);
                 Timestamp endTime = statistics.getEndTime(gameId);
-                logger.info("duration {}", duration);
+                List<Instruction> instructions = statistics.extractInstructions(gameId);
 
                 Map<String, Object> bindings = new TreeMap<>();
                 bindings.put("config", broker.getConfig());
                 bindings.put("game", game);
                 bindings.put("duration", duration);
                 bindings.put("endTime", endTime);
+                bindings.put("instructions", instructions);
 
 
                 try {

@@ -12,7 +12,7 @@ Player name: {{ game.playerName }}<br/>
 Scenario: {{ game.scenario }}<br/>
 Start time: {{ game.startTime }}<br/>
 End time: {{ endTime }}<br/>
-Duration: {{ duration }} <br/>
+Duration: {{ duration }} seconds <br/>
 
 
 <br/>
@@ -28,16 +28,29 @@ Duration: {{ duration }} <br/>
 <!--    {% end %}-->
 <!--</table>-->
 
-<!--<h1>Duration per Instruction</h1>-->
-<!--<table border="0">-->
-<!--    {% for row in instructions %}-->
-<!--    <tr>-->
-<!--        <td width="20%">{{ row.timestamp }}</td>-->
-<!--        <td>{{ row.text }}</td>-->
-<!--        <td>{{ row.duration }}</td>-->
-<!--    </tr>-->
-<!--    {% end %}-->
-<!--</table>-->
+<h1>Duration per Instruction</h1>
+<table border="0">
+    <thead>
+    <tr>
+        <th>Start time</th>
+        <th>Instruction text</th>
+        <th>Instruction execution</th>
+        <th>Duration in ms</th>
+        <th>Successful</th>
+    </tr>
+    </thead>
+    <tbody>
+        {% for row in instructions %}
+        <tr>
+        <td width="20%">{{ row.startTime }}</td>
+        <td>{{ row.text }}</td>
+        <td> {{ row.reaction }} </td>
+        <td>{{ row.duration }}</td>
+        <td>{{ row.successful }}</td>
+        </tr>
+        {% end %}
+    </tbody>
+</table>
 
 </body>
 </html>
