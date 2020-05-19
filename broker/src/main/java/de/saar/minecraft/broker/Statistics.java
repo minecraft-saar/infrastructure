@@ -28,16 +28,12 @@ public class Statistics {
 
 
     public long getExperimentDuration(int gameId) {
-        logger.info("game id {}", gameId);
         Result<GameLogsRecord> gameLog = jooq.selectFrom(Tables.GAME_LOGS)
             .where(Tables.GAME_LOGS.GAMEID.equal(gameId))
             .orderBy(Tables.GAME_LOGS.ID.asc())
             .fetch();
-        logger.info("game log {}", gameLog);
         Timestamp startTime = gameLog.get(0).getTimestamp();
-        logger.info("start {}", startTime);
         Timestamp endTime = gameLog.get(gameLog.size() - 1).getTimestamp();
-        logger.info("end {}", endTime);
         return TimeUnit.SECONDS.convert(endTime.getTime() - startTime.getTime(), TimeUnit.MILLISECONDS);
     }
 
