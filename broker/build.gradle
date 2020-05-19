@@ -16,7 +16,8 @@ dependencies {
     implementation "mysql:mysql-connector-java:5.1.6"
     implementation "org.flywaydb:flyway-core:6.1.4"
 
-    jooqRuntime "mysql:mysql-connector-java:5.1.6"
+    implementation 'org.mariadb.jdbc:mariadb-java-client:2.6.0'
+    jooqRuntime 'org.mariadb.jdbc:mariadb-java-client:2.6.0'
     
     implementation 'org.apache.commons:commons-collections4:4.4'
     implementation 'org.apache.commons:commons-text:1.4'
