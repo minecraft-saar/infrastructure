@@ -206,6 +206,7 @@ public class Broker {
             rec.setPlayerName(request.getPlayerName());
             rec.setScenario(scenario);
             rec.setStartTime(now());
+            rec.setModified(now());
             rec.store();
 
             int id = rec.getId();
@@ -394,6 +395,7 @@ public class Broker {
         // update status in games table
         jooq.update(Tables.GAMES)
             .set(Tables.GAMES.STATUS, status)
+            .set(Tables.GAMES.MODIFIED, now())
             .where(Tables.GAMES.ID.equal(gameid))
             .execute();
 
@@ -658,6 +660,7 @@ public class Broker {
             var url = config.getDatabase().getUrl();
             var user = config.getDatabase().getUsername();
             var password = config.getDatabase().getPassword();
+
             // First, migrate to newest version
             Flyway flyway = Flyway.configure()
                 .dataSource(url, user, password)
@@ -665,7 +668,7 @@ public class Broker {
                 .defaultSchema("MINECRAFT")
                 .load();
             flyway.migrate();
-            flyway.migrate();
+
             // second, connect to database
             Connection conn = DriverManager.getConnection(url, user, password);
             DSLContext ret = DSL.using(

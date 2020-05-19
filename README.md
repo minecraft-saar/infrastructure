@@ -65,9 +65,10 @@ broker:shadowJar` and run the broker/build/libs/broker-*-all.jar.
 `./gradlew architect:run` starts the architect with the default arguments:
 - waitTime = 1000 (how long to wait between instructions)
 - endAfterFirstBlock = false (only send a single instruction and then end)
+- responseFrequency = 1  (architect gives feedback after every nth status update)
 
 Different values can be specified when starting the architect, 
-e.g. `./gradlew architect:run --args="100 true"`
+e.g. `./gradlew architect:run --args="100 true 50"`
 
 
 ## Start the dummy client

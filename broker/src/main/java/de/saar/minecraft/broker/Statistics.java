@@ -21,19 +21,23 @@ public class Statistics {
     private final Broker broker;
     private final DSLContext jooq;
 
-    public Statistics (Broker broker) {
+    public Statistics(Broker broker) {
         this.broker = broker;
         jooq = broker.getJooq();
     }
 
 
     public long getExperimentDuration(int gameId) {
+        logger.info("game id {}", gameId);
         Result<GameLogsRecord> gameLog = jooq.selectFrom(Tables.GAME_LOGS)
             .where(Tables.GAME_LOGS.GAMEID.equal(gameId))
             .orderBy(Tables.GAME_LOGS.ID.asc())
             .fetch();
+        logger.info("game log {}", gameLog);
         Timestamp startTime = gameLog.get(0).getTimestamp();
+        logger.info("start {}", startTime);
         Timestamp endTime = gameLog.get(gameLog.size() - 1).getTimestamp();
+        logger.info("end {}", endTime);
         return TimeUnit.SECONDS.convert(endTime.getTime() - startTime.getTime(), TimeUnit.MILLISECONDS);
     }
 
@@ -136,10 +140,40 @@ public class Statistics {
             this.successful = successful;
         }
 
+        public void setDuration(long duration) {
+            this.duration = duration;
+        }
 
+        public void setEndTime(Timestamp endTime) {
+            this.endTime = endTime;
+        }
+
+        public void setReaction(String reaction) {
+            this.reaction = reaction;
+        }
+
+        public void setStartTime(Timestamp startTime) {
+            this.startTime = startTime;
+        }
+
+        public void setText(String text) {
+            this.text = text;
+        }
+
+        public void setSuccessful(boolean successful) {
+            this.successful = successful;
+        }
     }
 
     public Object getMistakes(int gameId) {
+        Result<GameLogsRecord> gameLog = jooq.selectFrom(Tables.GAME_LOGS)
+            .where(Tables.GAME_LOGS.GAMEID.equal(gameId))
+            .orderBy(Tables.GAME_LOGS.ID.asc())
+            .fetch();
+        // Iterate over log entries
+        // if a text message to the client contains "Please add that again" or similar
+        // -- make a new mistake entry:
+        // -- original instruction, which block was placed
         return null;
     }
 

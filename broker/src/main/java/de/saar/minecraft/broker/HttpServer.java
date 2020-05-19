@@ -254,6 +254,12 @@ public class HttpServer {
                 Timestamp endTime = statistics.getEndTime(gameId);
                 List<Instruction> instructions = statistics.extractInstructions(gameId);
 
+                // escape
+                for (Instruction row: instructions) {
+                    row.setText(StringEscapeUtils.escapeHtml4(row.text));
+                    row.setReaction(StringEscapeUtils.escapeHtml4(row.reaction));
+                }
+
                 Map<String, Object> bindings = new TreeMap<>();
                 bindings.put("config", broker.getConfig());
                 bindings.put("game", game);
