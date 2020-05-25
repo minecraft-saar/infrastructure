@@ -9,7 +9,6 @@ import de.saar.minecraft.architect.ArchitectInformation;
 import de.saar.minecraft.broker.db.GameLogsDirection;
 import de.saar.minecraft.broker.db.GameStatus;
 import de.saar.minecraft.broker.db.Tables;
-import de.saar.minecraft.broker.db.tables.Questionnaires;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.shared.BlockDestroyedMessage;
@@ -45,7 +44,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
@@ -84,7 +82,7 @@ public class Broker {
         public int port;
     }
 
-    private final BrokerConfiguration config;
+    final BrokerConfiguration config;
     private DSLContext jooq;
 
     private final TextFormat.Printer pr = TextFormat.printer();
@@ -238,7 +236,7 @@ public class Broker {
         public void getMessageChannel(GameId request,
             StreamObserver<TextMessage> responseObserver) {
             int id = request.getId();
-            var so = new DelegatingStreamObserver<>(id, responseObserver);
+            var so = new DelegatingStreamObserver(id, responseObserver, Broker.this);
             var architect = getNonblockingArchitect(id);
             if (architect != null) {
                 architect.getMessageChannel(request, so);
@@ -300,6 +298,9 @@ public class Broker {
                 getNonblockingArchitect(id).handleStatusInformation(
                     request, responseObserver
                 );
+            } else {
+                responseObserver.onNext(None.getDefaultInstance());
+                responseObserver.onCompleted();
             }
         }
 
@@ -314,6 +315,9 @@ public class Broker {
             log(id, request, GameLogsDirection.FromClient);
             if (!questionnaires.containsKey(id)) {
                 getNonblockingArchitect(id).handleBlockPlaced(request, responseObserver);
+            } else {
+                responseObserver.onNext(None.getDefaultInstance());
+                responseObserver.onCompleted();
             }
         }
 
@@ -329,6 +333,9 @@ public class Broker {
             if (!questionnaires.containsKey(id)) {
                 getNonblockingArchitect(id).handleBlockDestroyed(
                     request, responseObserver);
+            } else {
+                responseObserver.onNext(None.getDefaultInstance());
+                responseObserver.onCompleted();
             }
         }
 
@@ -338,7 +345,7 @@ public class Broker {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error (restart?, shutdown with error message?)
 
-            responseObserver.onNext(null);
+            responseObserver.onNext(None.getDefaultInstance());
             responseObserver.onCompleted();
         }
 
@@ -348,7 +355,7 @@ public class Broker {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error
 
-            responseObserver.onNext(null);
+            responseObserver.onNext(None.getDefaultInstance());
             responseObserver.onCompleted();
         }
 
@@ -359,13 +366,13 @@ public class Broker {
             log(id, request, GameLogsDirection.FromClient);
             if (!questionnaires.containsKey(id)) {
                 // ignore text messages if no questionnaire is running
-                responseObserver.onNext(null);
+                responseObserver.onNext(None.getDefaultInstance());
                 responseObserver.onCompleted();
                 return;
             }
             try {
                 questionnaires.get(id).onNext(request);
-                responseObserver.onNext(null);
+                responseObserver.onNext(None.getDefaultInstance());
                 responseObserver.onCompleted();
             } catch (Exception e) {
                 responseObserver.onError(e);
@@ -532,58 +539,14 @@ public class Broker {
         return architectConnections.get(selected);
     }
 
-    /**
-     * A DelegatingStreamObserver acts as a proxy in connections from the Architect to the Client.
-     * All messages are logged into the database and forwarded.
-     */
-    private class DelegatingStreamObserver<E extends MessageOrBuilder>
-                                          implements StreamObserver<E> {
-        private StreamObserver<E> toClient;
-        private int gameId;
-
-        public DelegatingStreamObserver(int gameId,
-                                        StreamObserver<E> toClient) {
-            this.toClient = toClient;
-            this.gameId = gameId;
-        }
-
-        @Override
-        public synchronized void onNext(E value) {
-            if (value instanceof TextMessage) {
-                var v = (TextMessage) value;
-                if (v.getNewGameState() == NewGameState.SuccessfullyFinished) {
-                    startQuestionnaire(gameId, this);
-                }
-                // Text message for logging purposes only, log and don't forward.
-                if (v.getForLogging()) {
-                    log(gameId, v.getText(), v.getLogType(), GameLogsDirection.LogFromArchitect);
-                    return;
-                }
-            }
-            toClient.onNext(value);
-            log(gameId, value, GameLogsDirection.PassToClient);
-        }
-
-        @Override
-        public void onError(Throwable t) {
-            log(gameId, t, GameLogsDirection.PassToClient);
-            toClient.onError(t);
-        }
-
-        @Override
-        public void onCompleted() {
-            toClient.onCompleted();
-        }
-    }
-
-    private static Timestamp now() {
+    public static Timestamp now() {
         return new Timestamp(System.currentTimeMillis());
     }
 
     /**
      * Logs game information to the database.
      */
-    private void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
+    void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
         String messageStr = "";
         try {
             messageStr = com.google.protobuf.util.JsonFormat.printer().print(message);
@@ -593,7 +556,7 @@ public class Broker {
         log(gameid, messageStr, message.getClass().getSimpleName(), direction);
     }
 
-    private void log(int gameid,
+    void log(int gameid,
         String messageStr,
         String messageType,
         GameLogsDirection direction) {
@@ -610,7 +573,7 @@ public class Broker {
     /**
      * Logs game information to the database.
      */
-    private void log(int gameid, Throwable message, GameLogsDirection direction) {
+    void log(int gameid, Throwable message, GameLogsDirection direction) {
         String messageStr = message.toString();
 
         GameLogsRecord rec = jooq.newRecord(Tables.GAME_LOGS);
@@ -695,9 +658,34 @@ public class Broker {
      */
     public void startQuestionnaire(int gameId,
         DelegatingStreamObserver streamObserver) {
-        logger.info("Starting questionnaire for game {}", gameId);
-        Questionnaire questionnaire = createQuestionnaire(gameId, streamObserver);
-        questionnaires.put(gameId, questionnaire);
+        if (config.getUseInternalQuestionnaire()) {
+            logger.info("Starting questionnaire for game {}", gameId);
+            Questionnaire questionnaire = createQuestionnaire(gameId, streamObserver);
+            questionnaire.start();
+            questionnaires.put(gameId, questionnaire);
+        } else {
+            // We put in a mock questionnaire as null values
+            // are not allowed. Note that this one is not start()ed.
+            Questionnaire questionnaire = new Questionnaire(
+                gameId,
+                new ArrayList<>(),
+                streamObserver, jooq
+            );
+            questionnaires.put(gameId, questionnaire);
+            new Thread(() -> {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                streamObserver.onNext(TextMessage.newBuilder()
+                    .setGameId(gameId)
+                    .setText(
+                        "Thank you for your time! you can hang around or disconnect now.")
+                    // .setNewGameState(NewGameState.QuestionnaireFinished)
+                    .build());
+            }).start();
+        }
     }
 
     /**
@@ -716,122 +704,6 @@ public class Broker {
 
         // Get matching questionnaire
         List<Question> questions = questionTemplates.get(scenarios.get(0));
-        return new Questionnaire(gameId, questions, streamObserver);
+        return new Questionnaire(gameId, questions, streamObserver, jooq);
     }
-
-    public void endQuestionnaire(int game) {
-
-    }
-
-    /**
-     * A Questionnaire is created once the player finishes their game.
-     * It sends initial information and receives all text messages written by the player
-     * from that point onwards.
-     */
-    private class Questionnaire {
-
-        public final int gameId;
-        public List<Question> questions;
-        public final DelegatingStreamObserver<TextMessage> stream;
-        private int currQuestion = 0;
-        private AnswerThread currThread;
-
-        public Questionnaire(int gameId,
-                             List<Question> questions,
-                             DelegatingStreamObserver<TextMessage> stream) {
-            this.questions = questions;
-            this.stream = stream;
-            this.gameId = gameId;
-            new Thread(() -> {
-                try {
-                    Thread.sleep(4000);
-                    sendText("We would like you to answer a few questions.");
-                    sendText("You can answer them by pressing \"t\","
-                        + " typing the answer and then pressing return.");
-                    sendText("Most questions should be answered with a number between "
-                        + " 1 (completely disagree) and 5 (completely agree)");
-                    Thread.sleep(4000);
-                    sendNextQuestion();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }).start();
-        }
-
-        /**
-         * processes a text message sent by the player.
-         * @param request The message object forwarded by the BrokerImpl.
-         */
-        public void onNext(TextMessage request) {
-            var answer = request.getText();
-            boolean answerIsValid = false;
-            switch (questions.get(currQuestion).type) {
-                case FREE:
-                    answerIsValid = true;
-                    break;
-                case LIKERT:
-                    answerIsValid = Set.of("1","2","3","4","5").contains(answer);
-                    break;
-            }
-
-            if (!answerIsValid) {
-                sendText("please answer with a number between "
-                    + "1 (completely disagree) and 5 (completely agree)");
-                return;
-            }
-
-            // TODO: validate answer
-            currThread.interrupt();
-
-            var record = jooq.newRecord(Questionnaires.QUESTIONNAIRES);
-            if (answer.length() > 4999) {
-                answer = answer.substring(0, 4999);
-            }
-            record.setAnswer(answer);
-            record.setGameid(gameId);
-            record.setQuestion(questions.get(currQuestion).toString());
-            record.setTimestamp(now());
-            record.store();
-
-            currQuestion += 1;
-            if (currQuestion == questions.size()) {
-                stream.onNext(TextMessage.newBuilder()
-                    .setGameId(gameId)
-                    .setText("Thank you for your time! you can hang around or disconnect now.")
-                    .setNewGameState(NewGameState.QuestionnaireFinished)
-                    .build());
-            } else {
-                sendNextQuestion();
-            }
-        }
-
-        class AnswerThread extends Thread {
-
-            public void run() {
-                while (true) {  // TODO: is there a maximum of attempts?
-                    sendText(questions.get(currQuestion).question);
-                    try {
-                        Thread.sleep(30000);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                    sendText("You can answer them by pressing \"t\", "
-                        + "typing the answer and then pressing return.");
-                }
-            }
-        }
-
-        private void sendNextQuestion() {
-            currThread = new AnswerThread();
-            currThread.start();
-        }
-
-        private synchronized void sendText(String text) {
-            stream.onNext(TextMessage.newBuilder()
-                .setGameId(gameId)
-                .setText(text)
-                .build());
-        }
-    }
-
 }
