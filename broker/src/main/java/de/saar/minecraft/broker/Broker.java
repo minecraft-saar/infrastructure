@@ -99,6 +99,18 @@ public class Broker {
         initQuestionnaires(config.getScenarios());
         this.config = config;
         jooq = setupDatabase();
+        // Do a random query every 20 minutes to keep the
+        // database connection alive.
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(20*1000*60);
+                } catch (InterruptedException e) {
+                    //whatever, we don't care
+                }
+                jooq.select().from(Tables.GAMES).fetch();
+            }
+        }).start();
 
         // start web server
         if (config.getHttpPort() == 0) {
