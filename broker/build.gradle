@@ -9,12 +9,13 @@ dependencies {
     implementation "com.google.protobuf:protobuf-java-util:3.11.0"
 
     // database stuff
-    implementation "org.jooq:jooq:3.12.3"
-    implementation "org.jooq:jooq-meta:3.12.3"
-    jooqRuntime "org.jooq:jooq-meta-extensions:3.12.3"
-    implementation "org.jooq:jooq-codegen:3.12.3"
+    implementation "org.jooq:jooq:3.13.0"
+    implementation "org.jooq:jooq-meta:3.13.0"
+    jooqRuntime "org.jooq:jooq-meta-extensions:3.13.0"
+    implementation "org.jooq:jooq-codegen:3.13.0"
     implementation "mysql:mysql-connector-java:5.1.6"
     implementation "org.flywaydb:flyway-core:6.1.4"
+
 
     implementation 'org.mariadb.jdbc:mariadb-java-client:2.6.0'
     jooqRuntime 'org.mariadb.jdbc:mariadb-java-client:2.6.0'
@@ -41,7 +42,7 @@ mainClassName = "de.saar.minecraft.broker.Broker"
 
 
 jooq {
-    version = '3.12.3'
+    version = '3.13.0'
     edition = 'OSS'
   
     minecraft(sourceSets.main) {
@@ -49,6 +50,9 @@ jooq {
             name = 'org.jooq.codegen.DefaultGenerator'
             strategy {
                 name = 'org.jooq.codegen.DefaultGeneratorStrategy'
+            }
+            generate {
+                javaTimeTypes = false
             }
             database {
                 name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
