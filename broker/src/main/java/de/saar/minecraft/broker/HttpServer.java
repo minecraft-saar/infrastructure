@@ -25,6 +25,7 @@ import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -251,7 +252,7 @@ public class HttpServer {
                 Statistics statistics = new Statistics(broker);
 
                 long duration = statistics.getExperimentDuration(gameId);
-                Timestamp endTime = statistics.getEndTime(gameId);
+                LocalDateTime endTime = statistics.getEndTime(gameId);
                 List<Instruction> instructions = statistics.extractInstructions(gameId);
 
                 // escape

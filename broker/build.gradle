@@ -52,7 +52,7 @@ jooq {
                 name = 'org.jooq.codegen.DefaultGeneratorStrategy'
             }
             generate {
-                javaTimeTypes = false
+                javaTimeTypes = true
             }
             database {
                 name = 'org.jooq.meta.extensions.ddl.DDLDatabase'

@@ -1,11 +1,16 @@
 package de.saar.minecraft.broker;
 
+import static java.time.temporal.ChronoUnit.NANOS;
+import static java.time.temporal.ChronoUnit.SECONDS;
+
 import de.saar.minecraft.broker.db.GameLogsDirection;
 import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.GameLogs;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.shared.TextMessage;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,18 +31,22 @@ public class Statistics {
         jooq = broker.getJooq();
     }
 
-
+    /**
+     * Returns the duration until the user logged out.  Note: This may be much longer than
+     * until task completion!
+     * @return Seconds elapsed between login and logout
+     */
     public long getExperimentDuration(int gameId) {
         Result<GameLogsRecord> gameLog = jooq.selectFrom(Tables.GAME_LOGS)
             .where(Tables.GAME_LOGS.GAMEID.equal(gameId))
             .orderBy(Tables.GAME_LOGS.ID.asc())
             .fetch();
-        Timestamp startTime = gameLog.get(0).getTimestamp();
-        Timestamp endTime = gameLog.get(gameLog.size() - 1).getTimestamp();
-        return TimeUnit.SECONDS.convert(endTime.getTime() - startTime.getTime(), TimeUnit.MILLISECONDS);
+        LocalDateTime startTime = gameLog.get(0).getTimestamp();
+        LocalDateTime endTime = gameLog.get(gameLog.size() - 1).getTimestamp();
+        return startTime.until(endTime, SECONDS);
     }
 
-    public Timestamp getEndTime(int gameId) {
+    public LocalDateTime getEndTime(int gameId) {
         Result<GameLogsRecord> gameLog = jooq.selectFrom(Tables.GAME_LOGS)
             .where(Tables.GAME_LOGS.GAMEID.equal(gameId))
             .orderBy(Tables.GAME_LOGS.ID.asc())
@@ -86,7 +95,7 @@ public class Statistics {
         // An instruction ends when the player places or breaks a block or sends a text message
         // An instruction ends unsuccessfully if there is a new text message before the player reacts
         String currentInstruction = "";
-        Timestamp instructionTime = gameLog.get(0).getTimestamp();
+        LocalDateTime instructionTime = gameLog.get(0).getTimestamp();
         List<Instruction> instructions = new ArrayList<>();
         for (GameLogsRecord logEntry: gameLog) {
             if (logEntry.getDirection().equals(GameLogsDirection.PassToClient)) {
@@ -120,17 +129,17 @@ public class Statistics {
     }
 
     public static class Instruction {
-        public Timestamp startTime;
-        public Timestamp endTime;
+        public LocalDateTime startTime;
+        public LocalDateTime endTime;
         public long duration;
         public String text;
         public String reaction;
         public boolean successful;
 
-        public Instruction(Timestamp startTime, Timestamp endTime, String text, String reaction, boolean successful) {
+        public Instruction(LocalDateTime startTime, LocalDateTime endTime, String text, String reaction, boolean successful) {
             this.startTime = startTime;
             this.endTime = endTime;
-            this.duration = endTime.getTime() - startTime.getTime();
+            this.duration = startTime.until(endTime, NANOS);
             this.text = text;
             this.reaction = reaction;
             this.successful = successful;
@@ -140,7 +149,7 @@ public class Statistics {
             this.duration = duration;
         }
 
-        public void setEndTime(Timestamp endTime) {
+        public void setEndTime(LocalDateTime endTime) {
             this.endTime = endTime;
         }
 
@@ -148,7 +157,7 @@ public class Statistics {
             this.reaction = reaction;
         }
 
-        public void setStartTime(Timestamp startTime) {
+        public void setStartTime(LocalDateTime startTime) {
             this.startTime = startTime;
         }
 

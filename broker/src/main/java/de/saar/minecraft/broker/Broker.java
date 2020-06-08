@@ -15,7 +15,6 @@ import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.MinecraftServerError;
-import de.saar.minecraft.shared.NewGameState;
 import de.saar.minecraft.shared.None;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
@@ -39,11 +38,11 @@ import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
@@ -540,19 +539,77 @@ public class Broker {
      * Selects a scenario for the next game.
      */
     private String selectScenario() {
-        var num = scenarios.size();
-        var selected = new Random().nextInt(num);
-        return scenarios.get(selected);
+        // scenarios in ascending order
+        // by number of games started with them
+        List<String> scenariosByNumExperiments =
+            jooq.select(Tables.GAMES.SCENARIO)
+                .from(Tables.GAMES)
+                .groupBy(Tables.GAMES.SCENARIO)
+                .orderBy(DSL.count())
+                .fetch(Tables.GAMES.SCENARIO)
+            .stream()
+            .filter(this.scenarios::contains)
+            .collect(Collectors.toList());
+
+        var neverPlayed = this.scenarios
+            .stream()
+            .filter((x) -> !scenariosByNumExperiments.contains(x))
+            .collect(Collectors.toList());
+
+        String scenarioToUse;
+        if (!neverPlayed.isEmpty()) {
+            scenarioToUse = neverPlayed.get(0);
+        } else {
+            scenarioToUse = scenariosByNumExperiments.get(0);
+        }
+        return scenarioToUse;
     }
 
     private ArchitectConnection selectArchitect() {
-        var num = architectConnections.size();
-        var selected = new Random().nextInt(num);
-        return architectConnections.get(selected);
+        Set<String> currentArchitects = architectConnections
+            .stream()
+            .map((x) -> x.architectInfo.getInfo())
+            .collect(Collectors.toSet());
+
+        // architect info in ascending order
+        // by number of games started with them
+        List<String> architectsByNumExperiments =
+            jooq.select(Tables.GAMES.ARCHITECT_INFO)
+                .from(Tables.GAMES)
+                .groupBy(Tables.GAMES.ARCHITECT_INFO)
+                .orderBy(DSL.count())
+                .fetch(Tables.GAMES.ARCHITECT_INFO)
+                .stream()
+                .filter(currentArchitects::contains)
+                .collect(Collectors.toList());
+
+        logger.debug("architectsByNumExperiments: " + architectsByNumExperiments);
+
+        var neverPlayed = currentArchitects.stream()
+            .filter((x) -> !architectsByNumExperiments.contains(x))
+            .collect(Collectors.toList());
+        logger.debug("never played: " + neverPlayed);
+
+        String architectToUse;
+        if (!neverPlayed.isEmpty()) {
+            architectToUse = neverPlayed.get(0);
+        } else {
+            architectToUse = architectsByNumExperiments.get(0);
+        }
+
+        logger.debug("architectToUse: " + architectToUse);
+
+        return architectConnections.stream()
+            .filter((x) ->
+                x.architectInfo
+                    .getInfo()
+                    .equals(architectToUse))
+                .findFirst()
+                .get();
     }
 
-    public static Timestamp now() {
-        return new Timestamp(System.currentTimeMillis());
+    public static LocalDateTime now() {
+        return LocalDateTime.now();
     }
 
     /**
