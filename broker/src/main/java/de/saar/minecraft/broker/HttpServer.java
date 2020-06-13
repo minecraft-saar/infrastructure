@@ -1,5 +1,8 @@
 package de.saar.minecraft.broker;
 
+import static de.saar.minecraft.broker.db.Tables.GAME_LOGS;
+
+
 import au.com.codeka.carrot.CarrotEngine;
 import au.com.codeka.carrot.CarrotException;
 import au.com.codeka.carrot.Configuration;
@@ -24,7 +27,6 @@ import java.io.OutputStream;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +35,7 @@ import java.util.TreeMap;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.pattern.NotANumber;
 import org.jooq.Result;
 
 public class HttpServer {
@@ -87,8 +90,8 @@ public class HttpServer {
         ret.add("index.html", slurp("index.html"));
         ret.add("showgame.html", slurp("showgame.html"));
         ret.add("showquestionnaire.html", slurp("showquestionnaire.html"));
-        ret.add("showstatistics.html", slurp("showstatistics.html"));
-
+        ret.add("showgamestatistics.html", slurp("showgamestatistics.html"));
+        ret.add("showscenariostatistics.html", slurp("showscenariostatistics.html"));
         return ret;
     }
 
@@ -110,8 +113,10 @@ public class HttpServer {
                 response = createGameResponse(t);
             } else if ("/showquestionnaire.html".equals(path)) {
                 response = createQuestionnaireResponse(t);
-            } else if ("/showstatistics.html".equals(path)) {
+            } else if ("/showgamestatistics.html".equals(path)) {
                 response = createStatisticsResponse(t);
+            } else if ("/showscenariostatistics.html".equals(path)) {
+                response = createScenarioInformationResponse(t);
             } else {
                 // undefined URL
                 response = "404 (not found)";
@@ -150,130 +155,117 @@ public class HttpServer {
         }
 
         private String createGameResponse(HttpExchange t) {
-            String response;
-            if (t.getRequestURI().getQuery() == null) {
-                response = "No game ID specified in HTTP query.";
-            } else {
+            String response = checkHttpQuery(t, "id");
+            if (response == null) {
                 Map<String,String> params = queryToMap(t.getRequestURI().getQuery());
-                if (! params.containsKey("id")) {
-                    response = "No game ID specified in HTTP query.";
-                } else {
-                    int gameid = Integer.parseInt(params.get("id"));
-                    GamesRecord game = broker.getJooq()
-                        .selectFrom(Tables.GAMES)
-                        .where(Tables.GAMES.ID.equal(gameid))
-                        .fetchOne();
+                int gameid = Integer.parseInt(params.get("id"));
+                GamesRecord game = broker.getJooq()
+                    .selectFrom(Tables.GAMES)
+                    .where(Tables.GAMES.ID.equal(gameid))
+                    .fetchOne();
 
-                    Result<GameLogsRecord> gameLog = broker.getJooq()
-                        .selectFrom(Tables.GAME_LOGS)
-                        .where(Tables.GAME_LOGS.GAMEID.equal(gameid))
-                        .orderBy(Tables.GAME_LOGS.ID.asc())
-                        .fetch();
+                Result<GameLogsRecord> gameLog = broker.getJooq()
+                    .selectFrom(Tables.GAME_LOGS)
+                    .where(Tables.GAME_LOGS.GAMEID.equal(gameid))
+                    .orderBy(Tables.GAME_LOGS.ID.asc())
+                    .fetch();
 
-                    // escape Textmessages for html
-                    for (GameLogsRecord entry: gameLog) {
-                        if (entry.getMessageType().equals(TextMessage.class.getSimpleName())) {
-                            JsonObject object = Json.parse(entry.getMessage()).asObject();
-                            String text = object.get("text").asString();
-                            object.set("text", StringEscapeUtils.escapeHtml4(text));
-                            entry.setMessage(object.toString());
-                        }
+                // escape Textmessages for html
+                for (GameLogsRecord entry: gameLog) {
+                    if (entry.getMessageType().equals(TextMessage.class.getSimpleName())) {
+                        JsonObject object = Json.parse(entry.getMessage()).asObject();
+                        String text = object.get("text").asString();
+                        object.set("text", StringEscapeUtils.escapeHtml4(text));
+                        entry.setMessage(object.toString());
                     }
+                }
 
-                    Map<String, Object> bindings = new TreeMap<>();
-                    bindings.put("config", broker.getConfig());
-                    bindings.put("game", game);
-                    bindings.put("log", gameLog);
+                Map<String, Object> bindings = new TreeMap<>();
+                bindings.put("config", broker.getConfig());
+                bindings.put("game", game);
+                bindings.put("log", gameLog);
 
-                    try {
-                        response = engine.process("showgame.html", new MapBindings(bindings));
-                    } catch (CarrotException e) {
-                        response = "An error occurred when expanding showgame.html: "
-                            + e.toString();
-                    }
+                try {
+                    response = engine.process("showgame.html", new MapBindings(bindings));
+                } catch (CarrotException e) {
+                    response = "An error occurred when expanding showgame.html: "
+                        + e.toString();
                 }
             }
             return response;
         }
 
         private String createQuestionnaireResponse(HttpExchange t) {
-            String response;
-            if (t.getRequestURI().getQuery() == null) {
-                response = "No game ID specified in HTTP query.";
-            } else {
+            String response = checkHttpQuery(t, "id");
+            if (response == null) {
                 Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
-                if (!params.containsKey("id")) {
-                    response = "No game ID specified in HTTP query.";
-                } else {
-                    int gameid = Integer.parseInt(params.get("id"));
-                    GamesRecord game = broker.getJooq()
-                        .selectFrom(Tables.GAMES)
-                        .where(Tables.GAMES.ID.equal(gameid))
-                        .fetchOne();
+                int gameid = Integer.parseInt(params.get("id"));
+                GamesRecord game = broker.getJooq()
+                    .selectFrom(Tables.GAMES)
+                    .where(Tables.GAMES.ID.equal(gameid))
+                    .fetchOne();
 
-                    Result<QuestionnairesRecord> questionnaire = broker.getJooq()
-                        .selectFrom(Tables.QUESTIONNAIRES)
-                        .where(Tables.QUESTIONNAIRES.GAMEID.equal(gameid))
-                        .orderBy(Tables.QUESTIONNAIRES.ID.asc())
-                        .fetch();
+                Result<QuestionnairesRecord> questionnaire = broker.getJooq()
+                    .selectFrom(Tables.QUESTIONNAIRES)
+                    .where(Tables.QUESTIONNAIRES.GAMEID.equal(gameid))
+                    .orderBy(Tables.QUESTIONNAIRES.ID.asc())
+                    .fetch();
 
-                    // escape for html
-                    for (QuestionnairesRecord row: questionnaire) {
-                        row.setQuestion(StringEscapeUtils.escapeHtml4(row.getQuestion()));
-                        row.setAnswer(StringEscapeUtils.escapeHtml4(row.getAnswer()));
-                    }
-                    Map<String, Object> bindings = new TreeMap<>();
-                    bindings.put("config", broker.getConfig());
-                    bindings.put("game", game);
-                    bindings.put("questionnaire", questionnaire);
-                    try {
-                        response = engine.process("showquestionnaire.html",
-                                                  new MapBindings(bindings));
-                    } catch (CarrotException e) {
-                        response = "An error occurred when expanding showquestionnaire.html: "
-                            + e.toString();
-                    }
+                // escape for html
+                for (QuestionnairesRecord row: questionnaire) {
+                    row.setQuestion(StringEscapeUtils.escapeHtml4(row.getQuestion()));
+                    row.setAnswer(StringEscapeUtils.escapeHtml4(row.getAnswer()));
+                }
+                Map<String, Object> bindings = new TreeMap<>();
+                bindings.put("config", broker.getConfig());
+                bindings.put("game", game);
+                bindings.put("questionnaire", questionnaire);
+                try {
+                    response = engine.process("showquestionnaire.html",
+                        new MapBindings(bindings));
+                } catch (CarrotException e) {
+                    response = "An error occurred when expanding showquestionnaire.html: "
+                        + e.toString();
                 }
             }
             return response;
         }
 
         public String createStatisticsResponse(HttpExchange t) {
-            String response = checkHttpQuery(t);
+            String response = checkHttpQuery(t, "id");
             if (response == null) {
                 Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
                 int gameId = Integer.parseInt(params.get("id"));
+
+                logger.info("game id {}", gameId);
 
                 GamesRecord game = broker.getJooq()
                     .selectFrom(Tables.GAMES)
                     .where(Tables.GAMES.ID.equal(gameId))
                     .fetchOne();
 
-                Statistics statistics = new Statistics(broker);
+                logger.info("game {}", game.getId());
 
-                long duration = statistics.getExperimentDuration(gameId);
-                LocalDateTime endTime = statistics.getEndTime(gameId);
-                List<Instruction> instructions = statistics.extractInstructions(gameId);
+                GameInformation info = new GameInformation(gameId, broker.getJooq());
+
+//                List<Instruction> instructions = statistics.extractInstructions(gameId);
 
                 // escape
-                for (Instruction row: instructions) {
-                    row.setText(StringEscapeUtils.escapeHtml4(row.text));
-                    row.setReaction(StringEscapeUtils.escapeHtml4(row.reaction));
-                }
+//                for (Instruction row: instructions) {
+//                    row.setText(StringEscapeUtils.escapeHtml4(row.text));
+//                    row.setReaction(StringEscapeUtils.escapeHtml4(row.reaction));
+//                }
 
                 Map<String, Object> bindings = new TreeMap<>();
                 bindings.put("config", broker.getConfig());
                 bindings.put("game", game);
-                bindings.put("duration", duration);
-                bindings.put("endTime", endTime);
-                bindings.put("instructions", instructions);
-
-
+                bindings.put("info", info);
+//                bindings.put("instructions", instructions);
                 try {
-                    response = engine.process("showstatistics.html",
+                    response = engine.process("showgamestatistics.html",
                         new MapBindings(bindings));
                 } catch (CarrotException e) {
-                    response = "An error occurred when expanding showstatistics.html: "
+                    response = "An error occurred when expanding showgamestatistics.html: "
                         + e.toString();
                 }
             }
@@ -281,16 +273,38 @@ public class HttpServer {
 
         }
 
-        private String checkHttpQuery(HttpExchange t) {
+        private String checkHttpQuery(HttpExchange t, String key) {
             String response;
             if (t.getRequestURI().getQuery() == null) {
                 response = "No game ID specified in HTTP query.";
             } else {
                 Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
-                if (!params.containsKey("id")) {
+                if (!params.containsKey(key)) {
                     response = "No game ID specified in HTTP query.";
                 } else {
                     response = null;
+                }
+            }
+            return response;
+        }
+
+        private String createScenarioInformationResponse(HttpExchange t) {
+            String response = checkHttpQuery(t, "scenario");
+            if (response == null) {
+                Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
+                String scenario = params.get("scenario");
+                ScenarioInformation info = new ScenarioInformation(scenario, broker.getJooq());
+
+
+                Map<String, Object> bindings = new TreeMap<>();
+                bindings.put("scenario", scenario);
+                bindings.put("statistics", info);
+                try {
+                    response = engine.process("showscenariostatistics.html",
+                        new MapBindings(bindings));
+                } catch (CarrotException e) {
+                    response = "An error occurred when expanding showscenariostatistics.html: "
+                        + e.toString();
                 }
             }
             return response;

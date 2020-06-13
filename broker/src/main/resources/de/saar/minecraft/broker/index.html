@@ -14,8 +14,13 @@
     {% for row in latest %}
       <a href="showgame.html?id={{ row.id }}">{{ row.id }}</a> from {{ row.clientIp }}: {{ row.status }}
     <a href="showquestionnaire.html?id={{ row.id }}"> questionnaire </a> &emsp;
-    <a href="showstatistics.html?id={{ row.id }}"> statistics </a>
+    <a href="showgamestatistics.html?id={{ row.id }}"> statistics </a>
     <br/>
     {% end %}
+
+    <h2>Scenario statistics</h2>
+    <!--    TODO get automatically all scenarios in database-->
+    <a href="showscenariostatistics.html?scenario=house"> house </a> <br/>
+    <a href="showscenariostatistics.html?scenario=bridge"> bridge </a> <br/>
 </body>
 </html>

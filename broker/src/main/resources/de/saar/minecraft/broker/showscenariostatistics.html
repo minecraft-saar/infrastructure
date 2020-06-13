@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Details for Scenario {{scenario}}</title>
+</head>
+<body>
+
+
+<h1> Details for Scenario {{ scenario }}</h1>
+<!--    Number of games: {{ statistics.numGames}} <br/>-->
+<!--    Average game duration: {{ statistics.averageGameDuration }} <br/>-->
+<!--    Fraction of successful games: {{ statistics.fractionSuccessfulGames }} <br/>-->
+<!--    Fraction of players making a mistake: {{ statistics.fractionMistakes }} <br/>-->
+<!--    Average number of mistakes: {{ statistics.averageNumMistakes }} <br/>-->
+<!--    Average number of blocks placed {{statistics.averageNumBlocksPlaced }} <br/>-->
+<!--    Average number of blocks destroyed {{ statistics.averageNumBlocksDestroyed}} <br/>-->
+
+<table>
+    <tbody>
+        <tr>
+            <td>Number of games</td>
+            <td>{{ statistics.numGames }}</td>
+        </tr>
+        <tr>
+            <td>Average game duration </td>
+            <td> {{ statistics.averageGameDuration }}</td>
+        </tr>
+        <tr>
+            <td>Fraction of successful games</td>
+            <td> {{ statistics.fractionSuccessfulGames }}</td>
+        </tr>
+        <tr>
+            <td>Fraction of players making a mistake</td>
+            <td> {{ statistics.fractionMistakes }}</td>
+        </tr>
+        <tr>
+            <td>Average number of mistakes</td>
+            <td> {{ statistics.averageNumMistakes}}</td>
+        </tr>
+        <tr>
+            <td>Average number of blocks placed</td>
+            <td> {{ statistics.averageNumBlocksPlaced }}</td>
+        </tr>
+        <tr>
+            <td>Average number of blocks destroyed</td>
+            <td> {{ statistics.averageNumBlocksDestroyed }}</td>
+        </tr>
+    </tbody>
+</table>
+
+
+<h3> Average Duration per Instruction</h3>
+TODO
+
+<h3> Histogram of Mistakes </h3>
+TODO
+
+</body>
+</html>

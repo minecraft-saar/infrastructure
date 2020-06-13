@@ -31,58 +31,16 @@ public class Statistics {
         jooq = broker.getJooq();
     }
 
-    /**
-     * Returns the duration until the user logged out.  Note: This may be much longer than
-     * until task completion!
-     * @return Seconds elapsed between login and logout
-     */
-    public long getExperimentDuration(int gameId) {
-        Result<GameLogsRecord> gameLog = jooq.selectFrom(Tables.GAME_LOGS)
-            .where(Tables.GAME_LOGS.GAMEID.equal(gameId))
-            .orderBy(Tables.GAME_LOGS.ID.asc())
-            .fetch();
-        LocalDateTime startTime = gameLog.get(0).getTimestamp();
-        LocalDateTime endTime = gameLog.get(gameLog.size() - 1).getTimestamp();
-        return startTime.until(endTime, SECONDS);
-    }
 
-    public LocalDateTime getEndTime(int gameId) {
-        Result<GameLogsRecord> gameLog = jooq.selectFrom(Tables.GAME_LOGS)
-            .where(Tables.GAME_LOGS.GAMEID.equal(gameId))
-            .orderBy(Tables.GAME_LOGS.ID.asc())
-            .fetch();
-        return gameLog.get(gameLog.size() - 1).getTimestamp();
+//    Average game duration: {{ statistics.averageGameDuration }} <br/>
+//    Fraction of successful games: {{ statistics.fractionSuccessfulGames }} <br/>
+//    Fraction of players making a mistake: {{ }} <br/>
+//    Average number of mistakes: {{ statistics.averageNumMistakes }} <br/>
+//    Average number of blocks placed {{statistics.averageNumBlocksPlaced }} <br/>
+//    Average number of blocks destroyed {{ statistics.averageNumBlocksDestroyed}} <br/>
+    public float getAverageGameDuration() {
+        return 0;
     }
-
-//    public HashMap<String, Float> getDurationPerInstruction(int gameId) {
-//        Result<GameLogsRecord> gameLog = jooq.selectFrom(Tables.GAME_LOGS)
-//            .where(Tables.GAME_LOGS.GAMEID.equal(gameId))
-//            .orderBy(Tables.GAME_LOGS.ID.asc())
-//            .fetch();
-//
-//        HashMap<String, Float> durations = new HashMap<>();
-//        String currentInstruction = "";
-//        Timestamp instructionTime = gameLog.get(0).getTimestamp();
-//        for (GameLogsRecord logEntry: gameLog) {
-//            if (logEntry.getMessageType().equals("TextMessage")) {
-//                logger.info("is a text message");
-//                if (logEntry.getDirection().equals(GameLogsDirection.PassToClient)) {
-//                    currentInstruction = logEntry.getMessage();
-//                    instructionTime = logEntry.getTimestamp();
-//                    continue;
-//                }
-//            }
-//            if (logEntry.getDirection().equals(GameLogsDirection.FromClient)) {
-//                if (logEntry.getMessageType().equals("BlockPlacedMessage")) {
-//                    // Compute duration
-//                    float duration = logEntry.getTimestamp().compareTo(instructionTime);
-//                    durations.put(currentInstruction, duration);
-//
-//                }
-//            }
-//        }
-//        return durations;
-//    }
 
     public List<Instruction> extractInstructions(int gameId) {
         Result<GameLogsRecord> gameLog = jooq.selectFrom(Tables.GAME_LOGS)
