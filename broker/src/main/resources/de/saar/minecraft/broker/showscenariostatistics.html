@@ -53,8 +53,58 @@
 <h3> Average Duration per Instruction</h3>
 TODO
 
-<h3> Histogram of Mistakes </h3>
-TODO
+<h3> Distribution of Mistakes </h3>
+<table>
+    <thead>
+        <tr>
+            <td>Number of mistakes</td>
+            <td> Players</td>
+        </tr>
+    </thead>
+    <tbody>
+    <!--    TODO: sort-->
+    {% for key, value in statistics.mistakeDistribution %}
+        <tr>
+            <td> {{ key }} </td>
+            <td> {{ value }} </td>
+        </tr>
+    {% end %}
+    </tbody>
+</table>
+
+<h3>Likert Questionnaire Responses</h3>
+<table>
+    <thead>
+    <tr>
+        <td>Question</td>
+        <td> Mean </td>
+        <td> Standard Deviation </td>
+        <td> Median </td>
+        <td> Minimum </td>
+        <td> Maximum </td>
+    </tr>
+    </thead>
+    <tbody>
+    {% for answer in statistics.answerDistribution %}
+    <tr>
+        <td> {{ answer.question }}</td>
+        <td> {{ answer.mean }} </td>
+        <td> {{ answer.stdDeviation }} </td>
+        <td> {{ answer.median }} </td>
+        <td> {{ answer.minimum }} </td>
+        <td> {{ answer.maximum }} </td>
+    </tr>
+    {% end %}
+    </tbody>
+</table>
+
+<h3>Free text Questionnaire Responses </h3>
+{% for question, responses in statistics.AllFreeTextResponses %}
+    <h4> {{ question }} </h4>
+    {% for response in responses %}}
+        {{ response }} <br/>
+    {% end %}
+{% end %}
 
 </body>
 </html>

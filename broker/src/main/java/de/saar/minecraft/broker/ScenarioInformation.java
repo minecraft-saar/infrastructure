@@ -2,8 +2,13 @@ package de.saar.minecraft.broker;
 
 import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
+import de.saar.minecraft.broker.db.tables.records.QuestionnairesRecord;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jooq.DSLContext;
@@ -41,7 +46,7 @@ public class ScenarioInformation {
             }
         }
         float sum = (float)durations.stream().reduce((long) 0, Long::sum);
-        return (sum / durations.size());
+        return roundTwoDecimals(sum / durations.size());
     }
 
     public float getFractionSuccessfulGames() {
@@ -51,7 +56,7 @@ public class ScenarioInformation {
                 numSuccessFul++;
             }
         }
-        return (float)numSuccessFul / games.size();
+        return roundTwoDecimals((float)numSuccessFul / games.size());
     }
 
     public float getAverageNumMistakes() {
@@ -60,7 +65,7 @@ public class ScenarioInformation {
             // TODO: count all games or only successful games?
             totalMistakes += info.getNumMistakes();
         }
-        return (float)totalMistakes / games.size();
+        return roundTwoDecimals((float)totalMistakes / games.size());
     }
 
     public float getAverageNumBlocksPlaced() {
@@ -69,7 +74,7 @@ public class ScenarioInformation {
             // TODO: count all games or only successful games?
             totalBlocks += info.getNumBlocksPlaced();
         }
-        return (float)totalBlocks / games.size();
+        return roundTwoDecimals((float)totalBlocks / games.size());
     }
 
     public float getAverageNumBlocksDestroyed() {
@@ -78,7 +83,7 @@ public class ScenarioInformation {
             // TODO: count all games or only successful games?
             totalBlocks += info.getNumBlocksDestroyed();
         }
-        return (float)totalBlocks / games.size();
+        return roundTwoDecimals( (float)totalBlocks / games.size() );
     }
 
     /**
@@ -93,6 +98,129 @@ public class ScenarioInformation {
                 withMistakes++;
             }
         }
-        return (float)withMistakes / games.size();
+        return roundTwoDecimals((float)withMistakes / games.size());
+    }
+
+    public HashMap<Integer,Integer> getMistakeDistribution() {
+        HashMap<Integer, Integer> distribution = new HashMap<>();
+        for (GameInformation info: games) {
+            int mistakes = info.getNumMistakes();
+            distribution.put(mistakes, distribution.getOrDefault(mistakes, 0) + 1);
+        }
+        return distribution;
+    }
+
+    private float roundTwoDecimals(float d) {
+        DecimalFormat twoDForm = new DecimalFormat("#.##");
+        return Float.parseFloat(twoDForm.format(d));
+    }
+
+    public List<Answer> getAnswerDistribution() {
+//        HashMap<String, List<Integer>> collection = new HashMap<>();
+        HashMap<String, DescriptiveStatistics> collection = new HashMap<>();
+
+        for (GameInformation info: games) {
+            int gameId = info.gameId;
+            Result<QuestionnairesRecord> questionnaire = jooq.selectFrom(Tables.QUESTIONNAIRES)
+                .where(Tables.QUESTIONNAIRES.GAMEID.equal(gameId))
+                .orderBy(Tables.QUESTIONNAIRES.ID.asc())
+                .fetch();
+            // collect
+            for (QuestionnairesRecord row: questionnaire) {
+                int currentAnswer;
+                // only include numeric answers
+                if (NumberUtils.isDigits(row.getAnswer())) {
+                    currentAnswer = Integer.parseInt(row.getAnswer());
+                    String question = row.getQuestion();
+                    collection.putIfAbsent(question, new DescriptiveStatistics());
+                    collection.get(question).addValue(currentAnswer);
+                }
+            }
+        }
+
+        // compute distribution
+        List<Answer> distribution = new ArrayList<>();
+        for (String question: collection.keySet()) {
+//            List<Integer> rawAnswers = collection.get(question);
+//            float average = (float)rawAnswers.stream().reduce(0, Integer::sum) / rawAnswers.size();
+//            int mode;
+//            int median;
+//            int minimum = rawAnswers.stream().reduce(100, Integer::min);
+//            int maximum = rawAnswers.stream().reduce(0, Integer::max);;
+
+            DescriptiveStatistics statistics = collection.get(question);
+            double mean = statistics.getGeometricMean();
+            double stdDeviation = statistics.getStandardDeviation();
+            int median = (int) statistics.getPercentile(50);
+            int minimum = (int) statistics.getMin();
+            int maximum = (int) statistics.getMax();
+            distribution.add(new Answer(question, mean, stdDeviation, median, minimum, maximum));
+        }
+        return distribution;
+    }
+
+    public HashMap<String,List<String>> getAllFreeTextResponses() {
+        HashMap<String, List<String>> collection = new HashMap<>();
+        for (GameInformation info: games) {
+            int gameId = info.gameId;
+            Result<QuestionnairesRecord> questionnaire = jooq.selectFrom(Tables.QUESTIONNAIRES)
+                .where(Tables.QUESTIONNAIRES.GAMEID.equal(gameId))
+                .orderBy(Tables.QUESTIONNAIRES.ID.asc())
+                .fetch();
+            for (QuestionnairesRecord row : questionnaire) {
+                if (!NumberUtils.isDigits(row.getAnswer())) {
+                    String answer = row.getAnswer();
+                    String question = row.getQuestion();
+                    collection.putIfAbsent(question, new ArrayList<>());
+                    collection.get(question).add(answer);
+                }
+            }
+        }
+        return collection;
+    }
+
+    public static class Answer {
+        private String question;
+        private double mean;
+        private double stdDeviation;
+        private int median;
+        private int minimum;
+        private int maximum;
+
+        public Answer(String question, double mean, double stdDeviation, int median, int minimum,
+            int maximum) {
+            this.question = question;
+            this.mean = mean;
+            this.stdDeviation = stdDeviation;
+            this.median = median;
+            this.minimum = minimum;
+            this.maximum = maximum;
+        }
+
+        public String getQuestion() {
+            return question;
+        }
+
+        public double getMean() {
+            DecimalFormat twoDForm = new DecimalFormat("#.##");
+            return Double.parseDouble(twoDForm.format(mean));
+        }
+
+        public double getStdDeviation() {
+            DecimalFormat twoDForm = new DecimalFormat("#.##");
+            return Double.parseDouble(twoDForm.format(stdDeviation));
+        }
+
+        public int getMedian() {
+            return median;
+        }
+
+        public int getMinimum() {
+            return minimum;
+        }
+
+        public int getMaximum() {
+            return maximum;
+        }
     }
 }

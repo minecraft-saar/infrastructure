@@ -28,6 +28,7 @@ import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ import org.apache.commons.text.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.pattern.NotANumber;
+import org.jooq.Record1;
 import org.jooq.Result;
 
 public class HttpServer {
@@ -139,6 +141,15 @@ public class HttpServer {
                     .limit(20)
                     .fetch();
 
+                Result<Record1<String>> result = broker.getJooq()
+                    .selectDistinct(Tables.GAMES.SCENARIO)
+                    .from(Tables.GAMES)
+                    .fetch();
+                List<String> scenarios = new ArrayList<>();
+                for (var record: result) {
+                    scenarios.add(record.get(Tables.GAMES.SCENARIO));
+                }
+                bindings.put("scenarios", scenarios);
                 bindings.put("latest", latestGames);
             } catch (Exception e) {
                 var error = "Could not fetch latest games.  Is the DB schema up to date?\n"
