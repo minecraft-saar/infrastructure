@@ -221,7 +221,7 @@ public class Broker {
             int id = rec.getId();
             setGameStatus(id, GameStatus.Created);
 
-            var architect = selectArchitect();
+            var architect = selectArchitect(scenario);
             runningGames.put(id, architect);
 
             // Select new game
@@ -565,7 +565,7 @@ public class Broker {
         return scenarioToUse;
     }
 
-    private ArchitectConnection selectArchitect() {
+    private ArchitectConnection selectArchitect(String scenario) {
         Set<String> currentArchitects = architectConnections
             .stream()
             .map((x) -> x.architectInfo.getInfo())
@@ -576,6 +576,7 @@ public class Broker {
         List<String> architectsByNumExperiments =
             jooq.select(Tables.GAMES.ARCHITECT_INFO)
                 .from(Tables.GAMES)
+                .where(Tables.GAMES.SCENARIO.eq(scenario))
                 .groupBy(Tables.GAMES.ARCHITECT_INFO)
                 .orderBy(DSL.count())
                 .fetch(Tables.GAMES.ARCHITECT_INFO)
