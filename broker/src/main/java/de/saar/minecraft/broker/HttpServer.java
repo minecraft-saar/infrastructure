@@ -9,12 +9,11 @@ import au.com.codeka.carrot.Configuration;
 import au.com.codeka.carrot.bindings.MapBindings;
 import au.com.codeka.carrot.resource.MemoryResourceLocator;
 import au.com.codeka.carrot.resource.ResourceLocator;
-import com.eclipsesource.json.Json;
-import com.eclipsesource.json.JsonObject;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.sun.net.httpserver.BasicAuthenticator;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import de.saar.minecraft.broker.Statistics.Instruction;
 import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
@@ -27,7 +26,6 @@ import java.io.OutputStream;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,7 +34,6 @@ import java.util.TreeMap;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.pattern.NotANumber;
 import org.jooq.Record1;
 import org.jooq.Result;
 
@@ -93,7 +90,7 @@ public class HttpServer {
         ret.add("showgame.html", slurp("showgame.html"));
         ret.add("showquestionnaire.html", slurp("showquestionnaire.html"));
         ret.add("showgamestatistics.html", slurp("showgamestatistics.html"));
-        ret.add("showscenariostatistics.html", slurp("showscenariostatistics.html"));
+        ret.add("allgames.html", slurp("allgames.html"));
         return ret;
     }
 
@@ -117,8 +114,8 @@ public class HttpServer {
                 response = createQuestionnaireResponse(t);
             } else if ("/showgamestatistics.html".equals(path)) {
                 response = createStatisticsResponse(t);
-            } else if ("/showscenariostatistics.html".equals(path)) {
-                response = createScenarioInformationResponse(t);
+            } else if ("/allgames.html".equals(path)) {
+                response = createAllGamesResponse(t);
             } else {
                 // undefined URL
                 response = "404 (not found)";
@@ -141,15 +138,6 @@ public class HttpServer {
                     .limit(20)
                     .fetch();
 
-                Result<Record1<String>> result = broker.getJooq()
-                    .selectDistinct(Tables.GAMES.SCENARIO)
-                    .from(Tables.GAMES)
-                    .fetch();
-                List<String> scenarios = new ArrayList<>();
-                for (var record: result) {
-                    scenarios.add(record.get(Tables.GAMES.SCENARIO));
-                }
-                bindings.put("scenarios", scenarios);
                 bindings.put("latest", latestGames);
             } catch (Exception e) {
                 var error = "Could not fetch latest games.  Is the DB schema up to date?\n"
@@ -184,11 +172,15 @@ public class HttpServer {
                 // escape Textmessages for html
                 for (GameLogsRecord entry: gameLog) {
                     if (entry.getMessageType().equals(TextMessage.class.getSimpleName())) {
-                        JsonObject object = Json.parse(entry.getMessage()).asObject();
-                        String text = object.get("text").asString();
-                        object.set("text", StringEscapeUtils.escapeHtml4(text));
+                        JsonObject object = JsonParser.parseString(entry.getMessage()).getAsJsonObject();
+                        if (! object.has("text")) {
+                            continue;
+                        }
+                        String text = object.get("text").getAsString();
+                        object.addProperty("text", StringEscapeUtils.escapeHtml4(text));
                         entry.setMessage(object.toString());
                     }
+
                 }
 
                 Map<String, Object> bindings = new TreeMap<>();
@@ -248,30 +240,17 @@ public class HttpServer {
                 Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
                 int gameId = Integer.parseInt(params.get("id"));
 
-                logger.info("game id {}", gameId);
-
                 GamesRecord game = broker.getJooq()
                     .selectFrom(Tables.GAMES)
                     .where(Tables.GAMES.ID.equal(gameId))
                     .fetchOne();
 
-                logger.info("game {}", game.getId());
-
                 GameInformation info = new GameInformation(gameId, broker.getJooq());
-
-//                List<Instruction> instructions = statistics.extractInstructions(gameId);
-
-                // escape
-//                for (Instruction row: instructions) {
-//                    row.setText(StringEscapeUtils.escapeHtml4(row.text));
-//                    row.setReaction(StringEscapeUtils.escapeHtml4(row.reaction));
-//                }
 
                 Map<String, Object> bindings = new TreeMap<>();
                 bindings.put("config", broker.getConfig());
                 bindings.put("game", game);
                 bindings.put("info", info);
-//                bindings.put("instructions", instructions);
                 try {
                     response = engine.process("showgamestatistics.html",
                         new MapBindings(bindings));
@@ -284,6 +263,27 @@ public class HttpServer {
 
         }
 
+        private String createAllGamesResponse(HttpExchange t) {
+            Map<String, Object> bindings = new TreeMap<>();
+            try {
+                Result<GamesRecord> allGames = broker.getJooq().selectFrom(Tables.GAMES)
+                    .orderBy(Tables.GAMES.ID.desc())
+                    .fetch();
+                bindings.put("games", allGames);
+            } catch (Exception e) {
+                var error = "Could not fetch games.  Is the DB schema up to date?\n"
+                    + e.toString();
+                logger.error(error);
+                return error;
+            }
+
+            try {
+                return engine.process("allgames.html", new MapBindings(bindings));
+            } catch (CarrotException e) {
+                return "An error occurred when expanding allgames.html: " + e.toString();
+            }
+        }
+
         private String checkHttpQuery(HttpExchange t, String key) {
             String response;
             if (t.getRequestURI().getQuery() == null) {
@@ -294,28 +294,6 @@ public class HttpServer {
                     response = "No game ID specified in HTTP query.";
                 } else {
                     response = null;
-                }
-            }
-            return response;
-        }
-
-        private String createScenarioInformationResponse(HttpExchange t) {
-            String response = checkHttpQuery(t, "scenario");
-            if (response == null) {
-                Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
-                String scenario = params.get("scenario");
-                ScenarioInformation info = new ScenarioInformation(scenario, broker.getJooq());
-
-
-                Map<String, Object> bindings = new TreeMap<>();
-                bindings.put("scenario", scenario);
-                bindings.put("statistics", info);
-                try {
-                    response = engine.process("showscenariostatistics.html",
-                        new MapBindings(bindings));
-                } catch (CarrotException e) {
-                    response = "An error occurred when expanding showscenariostatistics.html: "
-                        + e.toString();
                 }
             }
             return response;
