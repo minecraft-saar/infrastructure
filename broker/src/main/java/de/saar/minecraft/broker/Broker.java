@@ -619,7 +619,9 @@ public class Broker {
     void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
         String messageStr = "";
         try {
-            messageStr = com.google.protobuf.util.JsonFormat.printer().print(message);
+            messageStr = com.google.protobuf.util.JsonFormat.printer()
+                .includingDefaultValueFields()
+                .print(message);
         } catch (InvalidProtocolBufferException e) {
             logger.error("could convert message to json: " + message);
         }
