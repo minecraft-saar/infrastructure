@@ -134,11 +134,11 @@ The last method is `EndAllGames()` from the ArchitectServer.  It
 terminates all games; this method is meant for an orderly shutdown
 initiated by the broker.
 
-##Setting up the database
+## Setting up the database
 
 The broker logs everything into a database. In order to setup this database do the following: 
 
-###Installing and starting mariadb 
+### Installing and starting mariadb 
 
 1. Install `mariadb` Version 10.3.22 or higher `>sudo apt install mariadb-server mariadb-client` Run ` > sudo mysql `
 2. If this doesn’t work, you may have to start the server manually with `> sudo /etc/init.d/mysql start`
@@ -147,18 +147,18 @@ The broker logs everything into a database. In order to setup this database do t
 3. Create a user with ` > CREATE USER ‘minecraft’@’localhost’; `
 4. `> GRANT ALL PRIVILEGES  ON MINECRAFT.* TO 'minecraft'@'localhost';`
 
-###Setting up the database
+### Setting up the database
 
 1. Make sure the database url and username in the file `broker-config.yaml` are set correctly (url: "jdbc:mariadb://localhost:3306/", username: "minecraft")
 2. Start the broker to create the database
 3. Participate in Minecraft experiments to add data to the database
 
-###Looking at the database in your browser
+### Looking at the database in your browser
 
 1. Call `http://localhost:8080/` while the broker is still running default-username and -passwort: "mcsaar"
 2. Press Crtl and click to select more than one option from the dropdown menu
 
-###Looking at the database in your commandline	
+### Looking at the database in your commandline	
 
 1. Start mariadb using the minecraft user `> mysql -u minecraft` (if necessary, start the server again manually beforehand as in A) 2.1)
 2. Do SQL queries e.g.:
