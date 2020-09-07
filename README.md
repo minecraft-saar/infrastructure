@@ -143,7 +143,7 @@ The broker logs everything into a database. In order to setup this database do t
 1. Install `mariadb` Version 10.3.22 or higher `>sudo apt install mariadb-server mariadb-client` Run ` > sudo mysql `
 2. If this doesn’t work, you may have to start the server manually with `> sudo /etc/init.d/mysql start`
   * Then start mariadb (` >sudo mysql` or ` > mysql -u root -p`)
-  * If you are facing issues with socket, access denied or incorrect auth plugin, see [here.] (https://stackoverflow.com/questions/37879448/mysql-fails-on-mysql-error-1524-hy000-plugin-auth-socket-is-not-loaded) 
+  * If you are facing issues with socket, access denied or incorrect auth plugin, see [here.](https://stackoverflow.com/questions/37879448/mysql-fails-on-mysql-error-1524-hy000-plugin-auth-socket-is-not-loaded) 
 3. Create a user with ` > CREATE USER ‘minecraft’@’localhost’; `
 4. `> GRANT ALL PRIVILEGES  ON MINECRAFT.* TO 'minecraft'@'localhost';`
 
