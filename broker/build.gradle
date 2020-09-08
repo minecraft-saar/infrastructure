@@ -56,7 +56,6 @@ jooq {
             }
             database {
                 name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
-                inputSchema = "MINECRAFT"
                 properties {
                     property {
                         key = 'scripts'

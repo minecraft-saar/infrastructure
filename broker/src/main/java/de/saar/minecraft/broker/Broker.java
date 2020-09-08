@@ -674,7 +674,7 @@ public class Broker {
     private DSLContext setupDatabase() {
         // special case:  If no database was configured at all, use an in-memory db (for testing)
         if (config.getDatabase() == null) {
-            logger.warn("no database configured, will use in-memory database");
+            logger.warn("no database configured, will use temporary in-memory database");
             try {
                 Class.forName("org.h2.Driver");
             } catch (ClassNotFoundException e) {
@@ -697,12 +697,10 @@ public class Broker {
             var password = config.getDatabase().getPassword();
 
             // First, migrate to newest version
-            Flyway flyway = Flyway.configure()
+            Flyway.configure()
                 .dataSource(url, user, password)
-                .schemas("MINECRAFT")
-                .defaultSchema("MINECRAFT")
-                .load();
-            flyway.migrate();
+                .load()
+                .migrate();
 
             // second, connect to database
             Connection conn = DriverManager.getConnection(url, user, password);
