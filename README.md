@@ -38,12 +38,14 @@ assumes a mariadb or mysql database running on localhost.  With a
 default installation of mariadb, you can set up the database like this:
 
  - run `mariadb` as root
+ - Create a database schema that matches the url in the config.
+ For the example configuration: `CREATE SCHEMA MINECRAFT;`
  - Create a new user: `CREATE USER 'minecraft'@'localhost';`
  - Grant that user priviliges in the MINECRAFT database:
    `GRANT ALL PRIVILEGES  ON MINECRAFT.* TO 'minecraft'@'localhost'`
    
 The broker will automatically set up the database and update the
-schema if you update the broker.  ￼
+schema if you update the broker.
 
 You start the broker as follows:
 
@@ -141,17 +143,18 @@ and adjust the database server, database, and user name to your needs.
 
 ### Installing and starting mariadb 
 
-1. Install `mariadb` Version 10.3.22 or higher `>sudo apt install mariadb-server mariadb-client` Run ` > sudo mysql `
+1. Install `mariadb` Version 10.3.22 or higher `> sudo apt install mariadb-server mariadb-client` Run ` > sudo mysql `
 2. If this doesn’t work, you may have to start the server manually with `> sudo /etc/init.d/mysql start`
-  * Then start the  mariadb client as root (` >sudo mysql` or ` > mysql -u root -p`)
-  * If you are facing issues with sockets, access denied or incorrect auth plugin, see [here.](https://stackoverflow.com/questions/37879448/mysql-fails-on-mysql-error-1524-hy000-plugin-auth-socket-is-not-loaded) 
-3. Create a user with ` > CREATE USER ‘minecraft’@’localhost’; `
-4. `> GRANT ALL PRIVILEGES  ON MINECRAFT.* TO 'minecraft'@'localhost';`
+    * Then start the  mariadb client as root (` > sudo mysql` or ` > mysql -u root -p`)
+    * If you are facing issues with sockets, access denied or incorrect auth plugin, see [here.](https://stackoverflow.com/questions/37879448/mysql-fails-on-mysql-error-1524-hy000-plugin-auth-socket-is-not-loaded) 
+3. Create a new database schema, e.g. `CREATE SCHEMA MINECRAFT;`
+4. Create a user with ` > CREATE USER ‘minecraft’@’localhost’; `
+5. `> GRANT ALL PRIVILEGES  ON MINECRAFT.* TO 'minecraft'@'localhost';`
 
 ### Setting up the database
 
 1. Make sure the database url and username in the file `broker-config.yaml` are set correctly (url: "jdbc:mariadb://localhost:3306/MINECRAFT", username: "minecraft")
-2. Starting the broker automatically create the database tables (and updates them when running a new version)
+2. Starting the broker automatically creates the database tables (and updates them when running a new version)
 3. Participate in Minecraft experiments to add data to the database
 
 ### Looking at the database in your browser
@@ -166,3 +169,7 @@ and adjust the database server, database, and user name to your needs.
   - `select * from MINECRAFT.GAMES where id=26;`
   - `select * from MINECRAFT.GAME_LOGS where gameid=26;`
   - `select count(*) from MINECRAFT.GAME_LOGS where GAMEID=75 and MESSAGE_TYPE="BlockPlacedMessage" ;`
+
+### Importing a database backup
+1. If it doesn't exist yet, create the schema used in the backup
+2. `sudo mysql <schema> < <filename>.sql`
