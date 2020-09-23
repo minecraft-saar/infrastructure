@@ -19,6 +19,7 @@ service Architect {
     rpc HandleStatusInformation (StatusMessage) returns (None) {}
     rpc HandleBlockPlaced (BlockPlacedMessage) returns (None) {}
     rpc HandleBlockDestroyed (BlockDestroyedMessage) returns (None) {}
+    rpc HandleTextMessage (TextMessage) returns (None) {}
 }
 
 message ArchitectInformation {

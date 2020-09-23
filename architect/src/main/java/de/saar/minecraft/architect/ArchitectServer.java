@@ -243,6 +243,22 @@ public class ArchitectServer {
                 arch.handleBlockDestroyed(request);
             }
         }
+
+        /**
+         * Delegates a text message to the architect for the given game ID.
+         */
+        public void handleTextMessage(TextMessage request, StreamObserver<None> responseObserver) {
+            Architect arch = runningArchitects.get(request.getGameId());
+            if (arch == null) {
+                Status status = Status.newBuilder()
+                    .setCode(Code.INVALID_ARGUMENT.getNumber())
+                    .setMessage("No architect running for game ID " + request.getGameId())
+                    .build();
+                responseObserver.onError(StatusProto.toStatusRuntimeException(status));
+            } else {
+                arch.handleTextMessage(request);
+            }
+        }
     }
 
 

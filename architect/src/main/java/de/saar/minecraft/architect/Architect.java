@@ -55,6 +55,12 @@ public interface Architect {
     public void handleBlockDestroyed(BlockDestroyedMessage request);
 
     /**
+     * Handles text messages from the player. Only implement for dialog systems. For one-way
+     * instruction giving systems there is an empty method in the abstract architect class.
+     */
+    public void handleTextMessage(TextMessage request);
+
+    /**
      * Returns a string which identifies this Architect. The string might
      * include the class name and version information.
      */

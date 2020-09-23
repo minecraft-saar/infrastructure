@@ -56,6 +56,11 @@ class Questionnaire {
     public void onNext(TextMessage request) {
         var answer = request.getText();
         boolean answerIsValid = false;
+        // for text messages after the questionnaire is finished
+        if (currQuestion >= questions.size()) {
+            sendText("Thank you for your time! you can hang around or disconnect now.");
+            return;
+        }
         switch (questions.get(currQuestion).type) {
             case FREE:
                 answerIsValid = true;

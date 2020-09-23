@@ -61,4 +61,8 @@ public abstract class AbstractArchitect implements Architect {
             messageChannel.onNext(message);
         }
     }
+
+    public void handleTextMessage(TextMessage request) {
+        logger.debug("got text message: " + request.getText());
+    }
 }

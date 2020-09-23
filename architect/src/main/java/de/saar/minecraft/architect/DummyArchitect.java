@@ -4,6 +4,7 @@ import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.NewGameState;
 import de.saar.minecraft.shared.StatusMessage;
+import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.WorldSelectMessage;
 
 
@@ -102,6 +103,20 @@ public class DummyArchitect extends AbstractArchitect {
         // spawn a thread for a long-running computation
         new Thread(() -> {
             var text = String.format("A block was destroyed at %d-%d-%d :%d", x, y, z, type);
+            // delay for a bit
+            try {
+                Thread.sleep(waitTime);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            sendMessage(text);
+        }).start();
+    }
+
+    @Override
+    public void handleTextMessage(TextMessage request) {
+        new Thread(() -> {
+            String text = "You sent a text message: " + request.getText();
             // delay for a bit
             try {
                 Thread.sleep(waitTime);

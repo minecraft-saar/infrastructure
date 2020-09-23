@@ -376,9 +376,9 @@ public class Broker {
             int id = request.getGameId();
             log(id, request, GameLogsDirection.FromClient);
             if (!questionnaires.containsKey(id)) {
-                // ignore text messages if no questionnaire is running
-                responseObserver.onNext(None.getDefaultInstance());
-                responseObserver.onCompleted();
+                // feed text message to architect if no questionnaire is running
+                // the base architect ignores text messages
+                getNonblockingArchitect(id).handleTextMessage(request, responseObserver);
                 return;
             }
             try {
@@ -386,6 +386,7 @@ public class Broker {
                 responseObserver.onNext(None.getDefaultInstance());
                 responseObserver.onCompleted();
             } catch (Exception e) {
+                logger.error("in handle text message: " + e.getMessage());
                 responseObserver.onError(e);
             }
         }
