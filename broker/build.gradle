@@ -27,6 +27,8 @@ dependencies {
     
     // YAML
     implementation 'org.yaml:snakeyaml:1.25'
+
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.11.3'
     
     // web
     implementation 'au.com.codeka:carrot:2.4.2'

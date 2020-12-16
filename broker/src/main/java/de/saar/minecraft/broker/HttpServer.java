@@ -1,8 +1,5 @@
 package de.saar.minecraft.broker;
 
-import static de.saar.minecraft.broker.db.Tables.GAME_LOGS;
-
-
 import au.com.codeka.carrot.CarrotEngine;
 import au.com.codeka.carrot.CarrotException;
 import au.com.codeka.carrot.Configuration;
@@ -26,15 +23,12 @@ import java.io.OutputStream;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jooq.Record1;
 import org.jooq.Result;
 
 public class HttpServer {

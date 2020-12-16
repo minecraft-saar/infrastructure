@@ -38,6 +38,10 @@ public abstract class AbstractArchitect implements Architect {
 
     /**
      * send the text message back to the client.
+     * If the message starts with "{", the text will be interpreted as
+     * a json object and only the "message" field will be forwarded
+     * to the player.  Use this feature to add metadata you want to have
+     * logged into the database by the broker.
      */
     protected void sendMessage(String text, NewGameState newGameState) {
         TextMessage message = TextMessage.newBuilder()
@@ -50,6 +54,10 @@ public abstract class AbstractArchitect implements Architect {
         }
     }
 
+    /**
+     * Sends a message to the broker which will be stored in the database but
+     * not forwarded to the player.
+     */
     protected void log(String logMessage, String logType) {
         TextMessage message = TextMessage.newBuilder()
             .setGameId(gameId)
