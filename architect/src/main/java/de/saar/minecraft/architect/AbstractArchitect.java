@@ -10,6 +10,7 @@ public abstract class AbstractArchitect implements Architect {
     protected StreamObserver<TextMessage> messageChannel;
     protected int gameId;
     private static Logger logger = LogManager.getLogger(AbstractArchitect.class);
+    protected boolean playerHasLeft = false;
 
     @Override
     public void shutdown() {
@@ -50,7 +51,11 @@ public abstract class AbstractArchitect implements Architect {
             .setNewGameState(newGameState)
             .build();
         synchronized (this) {
-            messageChannel.onNext(message);
+            try {
+                messageChannel.onNext(message);
+            } catch (NullPointerException e) {
+                onMessageChannelClosed();
+            }
         }
     }
 
@@ -66,7 +71,25 @@ public abstract class AbstractArchitect implements Architect {
             .setLogType(logType)
             .build();
         synchronized (this) {
-            messageChannel.onNext(message);
+            try {
+                messageChannel.onNext(message);
+            } catch (NullPointerException e) {
+                onMessageChannelClosed();
+            }
         }
     }
+    
+    private void onMessageChannelClosed() {
+        if (!playerHasLeft) {
+            playerHasLeft = true;
+            playerLeft();
+        }
+    }
+    
+    /**
+     * This function gets called when the messageChannel closes.
+     * Implement this function to determine what should happen then.
+     */
+    protected abstract void playerLeft();
+    
 }

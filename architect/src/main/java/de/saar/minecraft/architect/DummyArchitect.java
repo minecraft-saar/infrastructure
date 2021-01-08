@@ -116,4 +116,9 @@ public class DummyArchitect extends AbstractArchitect {
     public String getArchitectInformation() {
         return "DummyArchitect";
     }
+
+    @Override
+    protected void playerLeft() {
+        System.err.println("Player disconnected.");
+    }
 }
