@@ -13,21 +13,14 @@ buildscript {
 plugins {
     id 'maven-publish'
     id 'idea'
-    id 'com.github.johnrengelman.shadow' version '5.0.0'
+    id 'com.github.johnrengelman.shadow' version '5.2.0'
     id 'pl.allegro.tech.build.axion-release' version '1.10.1'
     id "com.github.spotbugs" version "2.0.0"
 }
 
 allprojects {
     repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/minecraft-saar/simple-architect")
-            credentials {
-                username = project.findProperty("gpr.user") ?: System.getenv("GPR_USER")
-                password = project.findProperty("gpr.key") ?: System.getenv("GPR_API_KEY")
-            }
-        }
+        maven { url 'https://jitpack.io' }
         maven { // The google mirror is less flaky than mavenCentral()
             url "https://maven-central.storage-download.googleapis.com/repos/central/data/" }
         // maven central has packages that are missing from the google mirror
