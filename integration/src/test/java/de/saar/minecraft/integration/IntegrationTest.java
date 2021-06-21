@@ -13,9 +13,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class IntegrationTest {
     private ArchitectServer architectServer;
@@ -28,7 +28,7 @@ public class IntegrationTest {
     /**
      * Starts a new architectServer, broker, and client.
      */
-    @Before
+    @BeforeEach
     public void setup() throws IOException {
         architectServer = new ArchitectServer(ARCHITECT_PORT, () -> new DummyArchitect(0, true, 1));
         architectServer.start();
@@ -49,7 +49,7 @@ public class IntegrationTest {
     /**
      * stops architectServer, broker, and client.
      */
-    @After
+    @AfterEach
     public void teardown() throws InterruptedException {
         // broker.stop();
         broker.stop();

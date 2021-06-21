@@ -1,7 +1,9 @@
 
 
 dependencies {
-  compile project(path: ':broker')
-  compile project(path: ':architect')
+  implementation project(path: ':networking')
+  implementation project(path: ':broker')
+  implementation project(path: ':architect')
+  testImplementation('org.junit.jupiter:junit-jupiter:5.7.2')
 }
 

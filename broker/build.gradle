@@ -1,24 +1,24 @@
 plugins {
     // Provide convenience executables for trying out the examples.
     id 'application'
-    id 'nu.studer.jooq' version '3.0.3'
+    id 'nu.studer.jooq' version '5.2.1'
 }
 
 dependencies {
-    compile project(path: ':networking')
+    implementation project(path: ':networking')
     implementation 'com.google.protobuf:protobuf-java-util:3.11.0'
 
     // database stuff
-    implementation 'org.jooq:jooq:3.13.0'
-    implementation 'org.jooq:jooq-meta:3.13.0'
-    jooqRuntime 'org.jooq:jooq-meta-extensions:3.13.0'
-    implementation 'org.jooq:jooq-codegen:3.13.0'
+    implementation 'org.jooq:jooq:3.14.11'
+    implementation 'org.jooq:jooq-meta:3.14.11'
+    jooqGenerator 'org.jooq:jooq-meta-extensions:3.14.11'
+    implementation 'org.jooq:jooq-codegen:3.14.11'
     implementation 'mysql:mysql-connector-java:5.1.6'
     implementation 'org.flywaydb:flyway-core:6.1.4'
 
 
     implementation 'org.mariadb.jdbc:mariadb-java-client:2.6.0'
-    jooqRuntime 'org.mariadb.jdbc:mariadb-java-client:2.6.0'
+    jooqGenerator 'org.mariadb.jdbc:mariadb-java-client:2.6.0'
     
     implementation 'org.apache.commons:commons-collections4:4.4'
     implementation 'org.apache.commons:commons-text:1.4'
@@ -28,13 +28,13 @@ dependencies {
     // YAML
     implementation 'org.yaml:snakeyaml:1.25'
 
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.11.3'
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.11.3'
     
     // web
     implementation 'au.com.codeka:carrot:2.4.2'
 
-    compile 'com.github.minecraft-saar:shared-resources:7a572320431c89293c09e05d288ae8aa618c044d'
-    compile group: 'io.github.classgraph', name: 'classgraph', version: '4.8.60'
+    implementation 'com.github.minecraft-saar:shared-resources:7a572320431c89293c09e05d288ae8aa618c044d'
+    implementation group: 'io.github.classgraph', name: 'classgraph', version: '4.8.60'
 }
 
 
@@ -44,46 +44,49 @@ mainClassName = "de.saar.minecraft.broker.Broker"
 
 
 jooq {
-    version = '3.13.0'
-    edition = 'OSS'
-  
-    minecraft(sourceSets.main) {
-        generator {
-            name = 'org.jooq.codegen.DefaultGenerator'
-            strategy {
-                name = 'org.jooq.codegen.DefaultGeneratorStrategy'
-            }
-            generate {
-                javaTimeTypes = true
-            }
-            database {
-                name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
-                properties {
-                    property {
+    version = '3.14.11'
+    configurations {
+        main {
+            generationTool {
+                logging = org.jooq.meta.jaxb.Logging.WARN
+            generator {
+                name = 'org.jooq.codegen.DefaultGenerator'
+                strategy {
+                    name = 'org.jooq.codegen.DefaultGeneratorStrategy'
+                }
+                generate {
+                    javaTimeTypes = true
+                }
+                database {
+                    name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
+                    properties {
+                        property {
                         key = 'scripts'
-                        value = 'src/main/resources/db/migration/*.sql'
+                            value = 'src/main/resources/db/migration/*.sql'
+                        }
+                        property {
+                            key = 'sort'
+                            value = 'flyway'
+                        }
                     }
-                    property {
-                        key = 'sort'
-                        value = 'flyway'
+                    forcedTypes {
+                        forcedType {
+                            userType = 'de.saar.minecraft.broker.db.GameStatus'
+                            enumConverter = true
+                            includeExpression = '.*games.status'
+                        }
+                        forcedType {
+                            userType = 'de.saar.minecraft.broker.db.GameLogsDirection'
+                            enumConverter = true
+                            includeExpression = '.*game_logs.direction'
+                        }
                     }
                 }
-                forcedTypes {
-                    forcedType {
-                        userType = 'de.saar.minecraft.broker.db.GameStatus'
-                        enumConverter = true
-                        expression = '.*games.status'
-                    }
-                    forcedType {
-                        userType = 'de.saar.minecraft.broker.db.GameLogsDirection'
-                        enumConverter = true
-                        expression = '.*game_logs.direction'
-                    }
+                target {
+                    packageName = 'de.saar.minecraft.broker.db'
+                }
                 }
             }
-            target {
-                packageName = 'de.saar.minecraft.broker.db'
-             }
         }
     }
 }
