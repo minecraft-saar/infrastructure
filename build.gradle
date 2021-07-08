@@ -42,8 +42,11 @@ subprojects {
     apply plugin: "maven-publish"
     apply plugin: "java"
     apply plugin: 'com.github.johnrengelman.shadow'
-    
-    sourceCompatibility = 1.11
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(16)
+        }
+    }
     group 'de.saar.minecraft.infrastructure'
 
     task sourcesJar(type: Jar, dependsOn: classes) {
