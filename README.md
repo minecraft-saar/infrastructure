@@ -42,7 +42,7 @@ default installation of mariadb, you can set up the database like this:
  For the example configuration: `CREATE SCHEMA MINECRAFT;`
  - Create a new user: `CREATE USER 'minecraft'@'localhost';`
  - Grant that user priviliges in the MINECRAFT database:
-   `GRANT ALL PRIVILEGES  ON MINECRAFT.* TO 'minecraft'@'localhost'`
+   `GRANT ALL PRIVILEGES  ON *.* TO 'minecraft'@'localhost'`
    
 The broker will automatically set up the database and update the
 schema if you update the broker.
