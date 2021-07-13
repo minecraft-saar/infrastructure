@@ -33,7 +33,7 @@ dependencies {
     // web
     implementation 'au.com.codeka:carrot:2.4.2'
 
-    implementation 'com.github.minecraft-saar:shared-resources:d97b4ac7ed96788ba4cb5903c393fa74ddde7dca'
+    implementation 'com.github.minecraft-saar:shared-resources:f813b9705154ae6115b4abbde1dc38c33be381c5'
     implementation group: 'io.github.classgraph', name: 'classgraph', version: '4.8.60'
 }
 
