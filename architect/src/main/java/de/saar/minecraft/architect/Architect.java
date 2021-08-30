@@ -4,6 +4,7 @@ import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
+import de.saar.minecraft.shared.ProtectBlockMessage;
 import de.saar.minecraft.shared.WorldSelectMessage;
 import io.grpc.stub.StreamObserver;
 
@@ -32,6 +33,8 @@ public interface Architect {
     public void shutdown();
 
     public void setMessageChannel(StreamObserver<TextMessage> messageChannel);
+
+    public void setControlChannel(StreamObserver<ProtectBlockMessage> messageChannel);
 
     /**
      * Handles the regular status updates from the Minecraft server.

@@ -11,16 +11,7 @@ import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.Questionnaires;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
-import de.saar.minecraft.shared.BlockDestroyedMessage;
-import de.saar.minecraft.shared.BlockPlacedMessage;
-import de.saar.minecraft.shared.GameId;
-import de.saar.minecraft.shared.MinecraftServerError;
-import de.saar.minecraft.shared.NewGameState;
-import de.saar.minecraft.shared.None;
-import de.saar.minecraft.shared.StatusMessage;
-import de.saar.minecraft.shared.TextMessage;
-import de.saar.minecraft.shared.WorldFileError;
-import de.saar.minecraft.shared.WorldSelectMessage;
+import de.saar.minecraft.shared.*;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ScanResult;
 import io.grpc.ManagedChannel;
@@ -241,6 +232,19 @@ public class Broker {
             var architect = getNonblockingArchitect(id);
             if (architect != null) {
                 architect.getMessageChannel(request, so);
+            } else {
+                responseObserver.onError(new RuntimeException("Architect is null"));
+            }
+        }
+
+        @Override
+        public void getControlChannel(GameId request,
+                                      StreamObserver<ProtectBlockMessage> responseObserver) {
+            int id = request.getId();
+            var so = new DelegatingStreamObserver<>(id, responseObserver);
+            var architect = getNonblockingArchitect(id);
+            if (architect != null) {
+                architect.getControlChannel(request, so);
             } else {
                 responseObserver.onError(new RuntimeException("Architect is null"));
             }

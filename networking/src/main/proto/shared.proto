@@ -33,6 +33,15 @@ message TextMessage {
 }
 
 // type is the block material as listed in org.bukkit.Material
+message ProtectBlockMessage {
+    int32 gameId = 1;
+    int32 x = 2;
+    int32 y = 3;
+    int32 z = 4;
+    string type = 5;
+}
+
+// type is the block material as listed in org.bukkit.Material
 message BlockPlacedMessage {
     int32 gameId = 1;
     int32 x = 2;

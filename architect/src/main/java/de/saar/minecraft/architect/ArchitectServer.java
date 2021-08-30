@@ -2,13 +2,7 @@ package de.saar.minecraft.architect;
 
 import com.google.rpc.Code;
 import com.google.rpc.Status;
-import de.saar.minecraft.shared.BlockDestroyedMessage;
-import de.saar.minecraft.shared.BlockPlacedMessage;
-import de.saar.minecraft.shared.GameId;
-import de.saar.minecraft.shared.StatusMessage;
-import de.saar.minecraft.shared.TextMessage;
-import de.saar.minecraft.shared.None;
-import de.saar.minecraft.shared.WorldSelectMessage;
+import de.saar.minecraft.shared.*;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.protobuf.StatusProto;
@@ -137,6 +131,25 @@ public class ArchitectServer {
             }
 
             architect.setMessageChannel(responseObserver);
+            logger.info("set the message channel");
+        }
+
+        @Override
+        public void getControlChannel(GameId request,
+                                      StreamObserver<ProtectBlockMessage> responseObserver) {
+            logger.info("architectServer getControlChannel");
+            var architect = runningArchitects.get(request.getId());
+            if (architect == null) {
+                Status status = Status.newBuilder()
+                        .setCode(Code.INVALID_ARGUMENT.getNumber())
+                        .setMessage("No architect running for game ID " + request.getId())
+                        .build();
+                responseObserver.onError(StatusProto.toStatusRuntimeException(status));
+                logger.warn("could not find architect for message channel");
+                return;
+            }
+
+            architect.setControlChannel(responseObserver);
             logger.info("set the message channel");
         }
 
