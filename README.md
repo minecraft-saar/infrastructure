@@ -1,9 +1,62 @@
-# Minecraft NLG infrastructure
+# Minecraft Instruction giving infrastructure
 
-Infrastructure for connecting a Minecraft server to the NLG system.
+This repository contains components to perform instruction giving
+experiments in Minecraft.  Read about the overall software structure
+[here](https://minecraft-saar.github.io/mc-saar-instruct) or [in our
+paper](https://www.aclweb.org/anthology/2020.sigdial-1.7/).
+
+All software in this repository is bundled as a single gradle project
+with subprojects.  The `architect` subproject contains base classes
+for architects, implementing all shared behaviour such as connection
+handling and instruction sending.  It also contains the
+`ArchitectServer` class, which handles instantiating new architects on
+incoming game requests et cetera.  Lastly, it contains a dummy
+architect for testing purposes, which only “instructs” by sending the
+current user’s position to the user from time to time.
+
+The `networking` subproject builds all libraries needed for – as you
+might have guessed – networking.  These libraries are used by all
+components of the experiment system.  We use grpc.
+
+The `broker` subproject contains the central piece of the
+infrastructure.  The broker manages all connections and logs
+everything into a database.
+
+The `integration` subproject runs (dummies of) all components to test
+whether the overall system works as expected.
 
 
-### Start the Architect Server
+## Start the broker
+
+Make a copy of `example-broker-config.yaml` within the `broker`
+subdirectory, named `broker-config.yaml`, and edit it as needed.
+
+The broker uses a database.  Edit the database entry of the
+configuration to your needs.  If you remove that file, the broker will
+use a non-persistent in-memory h2 database.  The example configuration
+assumes a mariadb or mysql database running on localhost.  With a
+default installation of mariadb, you can set up the database like this:
+
+ - run `mariadb` as root
+ - Create a database schema that matches the url in the config.
+ For the example configuration: `CREATE SCHEMA MINECRAFT;`
+ - Create a new user: `CREATE USER 'minecraft'@'localhost';`
+ - Grant that user priviliges in the MINECRAFT database:
+   `GRANT ALL PRIVILEGES  ON *.* TO 'minecraft'@'localhost'`
+   
+The broker will automatically set up the database and update the
+schema if you update the broker.
+
+You start the broker as follows:
+
+```
+./gradlew broker:run
+```
+
+You can also create a jar for the broker with `./gradlew
+broker:shadowJar` and run the broker/build/libs/broker-*-all.jar.
+
+## Start the dummy Architect Server
 
 ```
 ./gradlew architect:run
@@ -12,24 +65,15 @@ Infrastructure for connecting a Minecraft server to the NLG system.
 (the shadow Jar is in architect/build/libs/architect-0.1.0-SNAPSHOT-all.jar)
 
 `./gradlew architect:run` starts the architect with the default arguments:
-- waitTime = 1000
-- endAfterFirstBlock = false
+- waitTime = 1000 (how long to wait between instructions)
+- endAfterFirstBlock = false (only send a single instruction and then end)
+- responseFrequency = 1  (architect gives feedback after every nth status update)
 
 Different values can be specified when starting the architect, 
-e.g. `./gradlew architect:run --args="100 true"`
+e.g. `./gradlew architect:run --args="100 true 50"`
 
 
-### Start the broker
-
-Make a copy of `example-broker-config.yaml` within the `broker` subdirectory, named `broker-config.yaml`, and edit it as needed. Then start the matchmaker as follows:
-
-```
-./gradlew broker:run
-```
-
-(the shadow Jar is in broker/build/libs/broker-0.1.0-SNAPSHOT-all.jar)
-
-### Start the dummy client
+## Start the dummy client
 
 The dummy client mimicks a Minecraft server and you can send messages
 by hand from this dummy client.
@@ -92,3 +136,40 @@ The last method is `EndAllGames()` from the ArchitectServer.  It
 terminates all games; this method is meant for an orderly shutdown
 initiated by the broker.
 
+## Setting up the database
+
+The broker logs everything into a database. You can set up the database as follows,
+and adjust the database server, database, and user name to your needs.
+
+### Installing and starting mariadb 
+
+1. Install `mariadb` Version 10.3.22 or higher `> sudo apt install mariadb-server mariadb-client` Run ` > sudo mysql `
+2. If this doesn’t work, you may have to start the server manually with `> sudo /etc/init.d/mysql start`
+    * Then start the  mariadb client as root (` > sudo mysql` or ` > mysql -u root -p`)
+    * If you are facing issues with sockets, access denied or incorrect auth plugin, see [here.](https://stackoverflow.com/questions/37879448/mysql-fails-on-mysql-error-1524-hy000-plugin-auth-socket-is-not-loaded) 
+3. Create a new database schema, e.g. `CREATE SCHEMA MINECRAFT;`
+4. Create a user with ` > CREATE USER ‘minecraft’@’localhost’; `
+5. `> GRANT ALL PRIVILEGES  ON MINECRAFT.* TO 'minecraft'@'localhost';`
+
+### Setting up the database
+
+1. Make sure the database url and username in the file `broker-config.yaml` are set correctly (url: "jdbc:mariadb://localhost:3306/MINECRAFT", username: "minecraft")
+2. Starting the broker automatically creates the database tables (and updates them when running a new version)
+3. Participate in Minecraft experiments to add data to the database
+
+### Looking at the database in your browser
+
+1. Visit `http://localhost:8080/` while the broker is still running. Default user and password: "mcsaar"
+2. Press Crtl and click to select more than one option from the dropdown menu
+
+### Looking at the database in your commandline	
+
+1. Start mariadb using the minecraft user `> mysql -u minecraft` (if necessary, start the server again manually beforehand as in A) 2.1)
+2. Do SQL queries e.g.:
+  - `select * from MINECRAFT.GAMES where id=26;`
+  - `select * from MINECRAFT.GAME_LOGS where gameid=26;`
+  - `select count(*) from MINECRAFT.GAME_LOGS where GAMEID=75 and MESSAGE_TYPE="BlockPlacedMessage" ;`
+
+### Importing a database backup
+1. If it doesn't exist yet, create the schema used in the backup
+2. `sudo mysql <schema> < <filename>.sql`

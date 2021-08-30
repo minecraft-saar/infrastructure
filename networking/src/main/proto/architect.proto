@@ -14,6 +14,7 @@ service Architect {
     rpc StartGame (WorldSelectMessage) returns (None) {}
     rpc GetMessageChannel (GameId) returns (stream TextMessage) {}
     rpc GetControlChannel (GameId) returns (stream ProtectBlockMessage) {}
+    rpc PlayerReady (GameId) returns (None) {}
     rpc EndGame (GameId) returns (None) {}
     rpc EndAllGames(None) returns (None) {}
     rpc HandleStatusInformation (StatusMessage) returns (None) {}

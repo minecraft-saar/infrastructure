@@ -24,15 +24,20 @@ enum NewGameState {
     NotChanged = 0;
     TutorialFinished = 1;
     SuccessfullyFinished = 2;
+    QuestionnaireFinished = 3;
 };
 
 message TextMessage {
     int32 gameId = 1;
     string text = 2;
     NewGameState newGameState = 3;
+    // denotes text messages that should not be forwarded
+    // but logged as-is by the broker and then discarded.
+    bool forLogging = 4;
+    string logType = 5;
 }
 
-// type is the block material as listed in org.bukkit.Material
+// type is the block material as a string as listed in org.bukkit.Material
 message ProtectBlockMessage {
     int32 gameId = 1;
     int32 x = 2;

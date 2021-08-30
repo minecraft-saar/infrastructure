@@ -106,13 +106,31 @@ public class ArchitectServer {
         @Override
         public void startGame(WorldSelectMessage request, StreamObserver<None> responseObserver) {
             Architect arch = factory.build();
-            arch.initialize(request);
             runningArchitects.put(request.getGameId(), arch);
 
-            responseObserver.onNext(None.newBuilder().build());
+            responseObserver.onNext(None.getDefaultInstance());
             responseObserver.onCompleted();
+            // perfom expensive initialization after letting the broker return.
+            arch.initialize(request);
+            logger.info("architect initialized for id {}: {}", request.getGameId(), arch);
+        }
 
-            logger.info("architect for id {}: {}", request.getGameId(), arch);
+        @Override
+        public void playerReady(GameId request, StreamObserver<None> responseObserver) {
+            int id = request.getId();
+            var architect = runningArchitects.get(id);
+            if (architect != null) {
+                responseObserver.onNext(None.getDefaultInstance());
+                responseObserver.onCompleted();
+                architect.playerReady();
+            } else {
+                Status status = Status.newBuilder()
+                    .setCode(Code.INVALID_ARGUMENT.getNumber())
+                    .setMessage("No architect running for game ID " + request.getId())
+                    .build();
+                responseObserver.onError(StatusProto.toStatusRuntimeException(status));
+                logger.warn("could not find architect for message channel");
+            }
         }
 
         @Override
@@ -246,12 +264,13 @@ public class ArchitectServer {
      */
     public static void main(String[] args) throws IOException, InterruptedException {
         ArchitectFactory factory;
-        if (args.length == 2) {
+        if (args.length == 3) {
             int waitTime = Integer.parseInt(args[0]);
             boolean endAfterFirstBlock = Boolean.parseBoolean(args[1]);
+            int responseFrequency = Integer.parseInt(args[2]);
             logger.info("waitTime: {}", waitTime);
             logger.info("endAfterFirstBlock: {}", endAfterFirstBlock);
-            factory = () -> new DummyArchitect(waitTime, endAfterFirstBlock);
+            factory = () -> new DummyArchitect(waitTime, endAfterFirstBlock, responseFrequency);
         } else {
             factory = DummyArchitect::new;
         }

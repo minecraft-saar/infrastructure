@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Details for game {{ game.id }} </title>
+    <script src="https://unpkg.com/tablefilter@0.6.109/dist/tablefilter/tablefilter.js"></script>
 </head>
 
 <body>
@@ -12,6 +13,7 @@
     Player name: {{ game.playerName }}<br/>
     Scenario: {{ game.scenario }}<br/>
     Start time: {{ game.startTime }}<br/>
+    Last modified: {{ game.modified }} <br/>
 
     <br/>
 
@@ -25,15 +27,33 @@
     <br/>
 
     <h1>Game Log</h1>
-    <table border="0">
+    <table style="border:0" class="filtertable">
+        <thead>
+        <tr>
+            <th>timestamp</th>
+            <th>direction</th>
+            <th>type</th>
+            <th>message</th>
+        </tr>
+        </thead>
+        <tbody>
         {% for row in log %}
         <tr>
-            <td width="20%">{{ row.timestamp }}</td>
+            <td>{{ row.timestamp }}</td>
             <td>{{ row.direction }}</td>
             <td>{{ row.messageType }}</td>
             <td>{{ row.message }}</td>
         </tr>
         {% end %}
+        </tbody>
     </table>
+<script>
+var tf = new TableFilter(document.querySelector('.filtertable'), {
+    base_path: 'https://unpkg.com/browse/tablefilter@0.6.109/dist/tablefilter/',
+    col_1: 'multiple',
+    col_2: 'multiple',
+});
+tf.init();
+</script>
 </body>
 </html>

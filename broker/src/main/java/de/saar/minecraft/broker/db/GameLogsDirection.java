@@ -9,9 +9,7 @@ package de.saar.minecraft.broker.db;
  */
 public enum GameLogsDirection {
     FromClient,
-    ToClient,
-    FromArchitect,
-    ToArchitect,
+    LogFromArchitect,
     PassToClient,
     PassToArchitect,
     None

@@ -13,6 +13,7 @@ public class BrokerConfiguration {
     private int port;
     private int httpPort;
     private List<String> scenarios = new ArrayList<>();
+    private boolean useInternalQuestionnaire = true;
 
     /**
      * Generates a BrokerConfiguration from the yaml data provided by the reader.
@@ -68,6 +69,14 @@ public class BrokerConfiguration {
 
     public void setScenarios(List<String> scenarios) {
         this.scenarios = scenarios;
+    }
+
+    public boolean getUseInternalQuestionnaire() {
+        return useInternalQuestionnaire;
+    }
+
+    public void setUseInternalQuestionnaire(boolean useInternalQuestionnaire) {
+        this.useInternalQuestionnaire = useInternalQuestionnaire;
     }
 
     public static class DatabaseAddress {

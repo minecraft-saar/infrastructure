@@ -1,5 +1,6 @@
 package de.saar.minecraft.broker;
 
+import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.GameId;
 import de.saar.minecraft.shared.None;
@@ -144,19 +145,34 @@ public class TestClient {
     }
 
     public void sendBlockPlacedMessage(int gameId, int x, int y, int z) {
-        nonblockingStub.handleBlockPlaced(BlockPlacedMessage.newBuilder()
+        sendBlockPlacedMessage(gameId, x, y, z, 0);
+    }
+
+    public void sendBlockPlacedMessage(int gameId, int x, int y, int z, int type) {
+        var message = BlockPlacedMessage.newBuilder()
             .setGameId(gameId)
             .setX(x)
             .setY(y)
             .setZ(z)
-            .setType(0)
-            .build(), new NoneObserver());
+            .setType(type)
+            .build();
+        logger.info("message {}", message);
+        nonblockingStub.handleBlockPlaced(message, new NoneObserver());
     }
 
     public void sendTextMessage(int gameId, String message) {
         nonblockingStub.handleTextMessage(TextMessage.newBuilder()
             .setGameId(gameId)
             .setText(message)
+            .build(), new NoneObserver());
+    }
+
+    public void sendBlockDestroyedMessage(int gameId, int x, int y, int z) {
+        nonblockingStub.handleBlockDestroyed(BlockDestroyedMessage.newBuilder()
+            .setGameId(gameId)
+            .setX(x)
+            .setY(y)
+            .setZ(z)
             .build(), new NoneObserver());
     }
 
@@ -218,20 +234,67 @@ public class TestClient {
                 if (gameData == null) {
                     client.finishGame(gameId);
                     break;
-                } else if (gameData.startsWith(STATUS)) {
-                    int id = Integer.parseInt(gameData.substring(STATUS.length() + 1));
-                    client.sendStatusMessage(id, 1, 2, 3, 0.4, 0.0, -0.7);
-                } else if (gameData.startsWith(PLACE)) {
-                    int id = Integer.parseInt(gameData.substring(PLACE.length() + 1));
-                    client.sendBlockPlacedMessage(id, 5,2,3);
-                } else if (gameData.startsWith(TEXT)) {
-                    String[] parts = gameData.split(" ");
-                    int id = Integer.parseInt(parts[1]);
-                    String message = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
-                    client.sendTextMessage(id, message);
-                } else {
+                }
+                String[] parts = gameData.split(" ");
+                if (parts.length == 1) {
+                    // start new game
                     gameId = client.registerGame(gameData, null);
                     System.out.printf("got game ID %d\n", gameId);
+                    continue;
+                }
+                int id = Integer.parseInt(parts[1]);
+                switch (parts[0]) {
+                    case STATUS:
+                        if (parts.length == 8){
+                            client.sendStatusMessage(id,
+                                Integer.parseInt(parts[2]),
+                                Integer.parseInt(parts[3]),
+                                Integer.parseInt(parts[4]),
+                                Float.parseFloat(parts[5]),
+                                Float.parseFloat(parts[6]),
+                                Float.parseFloat(parts[7]));
+                        } else if (parts.length == 5) {
+                            client.sendStatusMessage(id,
+                                Integer.parseInt(parts[2]),
+                                Integer.parseInt(parts[3]),
+                                Integer.parseInt(parts[4]),
+                                0.4,
+                                0.0,
+                                -0.7);
+                        } else {
+                            client.sendStatusMessage(id, 1, 2, 3, 0.4, 0.0, -0.7);
+                        }
+                        break;
+                    case PLACE:
+                        if (parts.length == 6) {
+                            client.sendBlockPlacedMessage(id,
+                                Integer.parseInt(parts[2]),
+                                Integer.parseInt(parts[3]),
+                                Integer.parseInt(parts[4]),
+                                Integer.parseInt(parts[5]));
+                        } else if (parts.length == 5) {
+                            client.sendBlockPlacedMessage(id,
+                                Integer.parseInt(parts[2]),
+                                Integer.parseInt(parts[3]),
+                                Integer.parseInt(parts[4]));
+                        } else {
+                            client.sendBlockPlacedMessage(id, 5,2,3);
+                        }
+                        break;
+                    case DESTROY:
+                        if (parts.length == 5) {
+                            client.sendBlockDestroyedMessage(id,
+                                Integer.parseInt(parts[2]),
+                                Integer.parseInt(parts[3]),
+                                Integer.parseInt(parts[4]));
+                        } else {
+                            client.sendBlockDestroyedMessage(id, 5,2,3);
+                        }
+                        break;
+                    case TEXT:
+                        String message = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
+                        client.sendTextMessage(id, message);
+                        break;
                 }
             }
         } finally {

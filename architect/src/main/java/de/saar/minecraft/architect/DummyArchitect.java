@@ -4,24 +4,28 @@ import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
 import de.saar.minecraft.shared.NewGameState;
 import de.saar.minecraft.shared.StatusMessage;
-import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.WorldSelectMessage;
-import io.grpc.stub.StreamObserver;
+
 
 public class DummyArchitect extends AbstractArchitect {
     private int waitTime;
-    private StreamObserver<TextMessage> messageChannel;
+    private int statusIteration;
+    private int responseFrequency;
 
     private final boolean endAfterFirstBlock;
 
-    public DummyArchitect(int waitTime, boolean endAfterFirstBlock) {
+    public DummyArchitect(int waitTime, boolean endAfterFirstBlock, int responseFrequency) {
         this.endAfterFirstBlock = endAfterFirstBlock;
         this.waitTime = waitTime;
+        this.statusIteration = 0;
+        this.responseFrequency = responseFrequency;
     }
 
     public DummyArchitect(int waitTime) {
         this.waitTime = waitTime;
         this.endAfterFirstBlock = false;
+        this.statusIteration = 0;
+        this.responseFrequency = 1;
     }
 
     public DummyArchitect() {
@@ -35,10 +39,20 @@ public class DummyArchitect extends AbstractArchitect {
     }
 
     @Override
+    public void playerReady() {
+
+    }
+
+    @Override
     public void handleStatusInformation(StatusMessage request) {
         int x = request.getX();
         double xdir = request.getXDirection();
-        int gameId = request.getGameId();
+
+        // send only for every every twentieth status update a message
+        if (++statusIteration < responseFrequency) {
+            return;
+        }
+        statusIteration = 0;
 
         // spawn a thread for a long-running computation
         new Thread(() -> {
@@ -60,7 +74,6 @@ public class DummyArchitect extends AbstractArchitect {
         int x = request.getX();
         int y = request.getY();
         int z = request.getZ();
-        int gameId = request.getGameId();
 
         // spawn a thread for a long-running computation
         new Thread(() -> {
@@ -81,7 +94,6 @@ public class DummyArchitect extends AbstractArchitect {
 
     @Override
     public void handleBlockDestroyed(BlockDestroyedMessage request) {
-        int gameId = request.getGameId();
         int x = request.getX();
         int y = request.getY();
         int z = request.getZ();
@@ -103,5 +115,10 @@ public class DummyArchitect extends AbstractArchitect {
     @Override
     public String getArchitectInformation() {
         return "DummyArchitect";
+    }
+
+    @Override
+    protected void playerLeft() {
+        System.err.println("Player disconnected.");
     }
 }

@@ -13,5 +13,5 @@ architectServers:
 #   port: 10001
 
 database:
-  url: "jdbc:mysql://localhost:3306/"
+  url: "jdbc:mariadb://localhost:3306/MINECRAFT"
   username: "minecraft"

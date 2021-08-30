@@ -4,3 +4,9 @@
 build/
 .gradle/
 .idea/
+.project
+.settings
+.classpath
+broker-config.yaml
+.#*
+\#*

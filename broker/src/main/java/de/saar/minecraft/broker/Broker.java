@@ -1,5 +1,6 @@
 package de.saar.minecraft.broker;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.TextFormat;
 import de.saar.minecraft.architect.ArchitectGrpc;
@@ -8,7 +9,6 @@ import de.saar.minecraft.architect.ArchitectInformation;
 import de.saar.minecraft.broker.db.GameLogsDirection;
 import de.saar.minecraft.broker.db.GameStatus;
 import de.saar.minecraft.broker.db.Tables;
-import de.saar.minecraft.broker.db.tables.Questionnaires;
 import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.shared.*;
@@ -30,11 +30,11 @@ import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
@@ -73,12 +73,12 @@ public class Broker {
         public int port;
     }
 
-    private final BrokerConfiguration config;
+    final BrokerConfiguration config;
     private DSLContext jooq;
 
     private final TextFormat.Printer pr = TextFormat.printer();
     private List<String> scenarios;
-    private HashMap<String, List<String>> questionTemplates;
+    private HashMap<String, List<Question>> questionTemplates;
 
     /**
      * Builds a new broker from a given configuration.
@@ -90,6 +90,18 @@ public class Broker {
         initQuestionnaires(config.getScenarios());
         this.config = config;
         jooq = setupDatabase();
+        // Do a random query every 20 minutes to keep the
+        // database connection alive.
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(20*1000*60);
+                } catch (InterruptedException e) {
+                    //whatever, we don't care
+                }
+                jooq.select().from(Tables.GAMES).fetch();
+            }
+        }).start();
 
         // start web server
         if (config.getHttpPort() == 0) {
@@ -195,12 +207,13 @@ public class Broker {
             rec.setPlayerName(request.getPlayerName());
             rec.setScenario(scenario);
             rec.setStartTime(now());
+            rec.setModified(now());
             rec.store();
 
             int id = rec.getId();
             setGameStatus(id, GameStatus.Created);
 
-            var architect = selectArchitect();
+            var architect = selectArchitect(scenario);
             runningGames.put(id, architect);
 
             // Select new game
@@ -220,15 +233,13 @@ public class Broker {
             // tell client the game ID and selected world
             responseObserver.onNext(worldSelectMessage);
             responseObserver.onCompleted();
-
-            setGameStatus(id, GameStatus.Running);
         }
 
         @Override
         public void getMessageChannel(GameId request,
             StreamObserver<TextMessage> responseObserver) {
             int id = request.getId();
-            var so = new DelegatingStreamObserver<>(id, responseObserver);
+            var so = new DelegatingStreamObserver(id, responseObserver, Broker.this);
             var architect = getNonblockingArchitect(id);
             if (architect != null) {
                 architect.getMessageChannel(request, so);
@@ -241,13 +252,22 @@ public class Broker {
         public void getControlChannel(GameId request,
                                       StreamObserver<ProtectBlockMessage> responseObserver) {
             int id = request.getId();
-            var so = new DelegatingStreamObserver<>(id, responseObserver);
+            var so = new DelegatingControlStreamObserver(id, responseObserver, Broker.this);
             var architect = getNonblockingArchitect(id);
             if (architect != null) {
                 architect.getControlChannel(request, so);
             } else {
                 responseObserver.onError(new RuntimeException("Architect is null"));
             }
+        }
+
+        public void playerReady(GameId request, StreamObserver<None> responseObserver) {
+            int id = request.getId();
+            setGameStatus(id, GameStatus.Running);
+            var architect = getBlockingArchitect(request.getId());
+            architect.playerReady(request);
+            responseObserver.onNext(None.getDefaultInstance());
+            responseObserver.onCompleted();
         }
 
         private StatusException createNoSuchIdException(int id) {
@@ -293,6 +313,9 @@ public class Broker {
                 getNonblockingArchitect(id).handleStatusInformation(
                     request, responseObserver
                 );
+            } else {
+                responseObserver.onNext(None.getDefaultInstance());
+                responseObserver.onCompleted();
             }
         }
 
@@ -307,6 +330,9 @@ public class Broker {
             log(id, request, GameLogsDirection.FromClient);
             if (!questionnaires.containsKey(id)) {
                 getNonblockingArchitect(id).handleBlockPlaced(request, responseObserver);
+            } else {
+                responseObserver.onNext(None.getDefaultInstance());
+                responseObserver.onCompleted();
             }
         }
 
@@ -322,6 +348,9 @@ public class Broker {
             if (!questionnaires.containsKey(id)) {
                 getNonblockingArchitect(id).handleBlockDestroyed(
                     request, responseObserver);
+            } else {
+                responseObserver.onNext(None.getDefaultInstance());
+                responseObserver.onCompleted();
             }
         }
 
@@ -331,7 +360,7 @@ public class Broker {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error (restart?, shutdown with error message?)
 
-            responseObserver.onNext(null);
+            responseObserver.onNext(None.getDefaultInstance());
             responseObserver.onCompleted();
         }
 
@@ -341,7 +370,7 @@ public class Broker {
             log(request.getGameId(), request, GameLogsDirection.FromClient);
             //TODO: react to error
 
-            responseObserver.onNext(null);
+            responseObserver.onNext(None.getDefaultInstance());
             responseObserver.onCompleted();
         }
 
@@ -349,15 +378,16 @@ public class Broker {
         public void handleTextMessage(TextMessage request,
                                       StreamObserver<None> responseObserver) {
             int id = request.getGameId();
+            log(id, request, GameLogsDirection.FromClient);
             if (!questionnaires.containsKey(id)) {
                 // ignore text messages if no questionnaire is running
-                responseObserver.onNext(null);
+                responseObserver.onNext(None.getDefaultInstance());
                 responseObserver.onCompleted();
                 return;
             }
             try {
                 questionnaires.get(id).onNext(request);
-                responseObserver.onNext(null);
+                responseObserver.onNext(None.getDefaultInstance());
                 responseObserver.onCompleted();
             } catch (Exception e) {
                 responseObserver.onError(e);
@@ -387,6 +417,7 @@ public class Broker {
         // update status in games table
         jooq.update(Tables.GAMES)
             .set(Tables.GAMES.STATUS, status)
+            .set(Tables.GAMES.MODIFIED, now())
             .where(Tables.GAMES.ID.equal(gameid))
             .execute();
 
@@ -443,20 +474,20 @@ public class Broker {
                 String path = String.format("/de/saar/minecraft/questionnaires/%s.txt", filename);
                 InputStream in = Broker.class.getResourceAsStream(path);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-                List<String> current = new ArrayList<>();
+                List<Question> current = new ArrayList<>();
                 String line;
                 while ((line = reader.readLine()) != null) {
                     // Skip empty lines
                     if (line.strip().length() > 0) {
-                        current.add(line);
+                        current.add(new Question(line));
                     }
-                    logger.info("Line: {}", line);
+                    logger.debug("Line: {}", line);
                 }
                 reader.close();
                 questionTemplates.put(filename, current);
             } catch (IOException e) {
-                // TODO
-                e.printStackTrace();
+                logger.error("Could not load questionnaire {}", filename);
+                throw(new RuntimeException("Could not load questionnaire: " + filename));
             }
         }
 
@@ -512,70 +543,104 @@ public class Broker {
      * Selects a scenario for the next game.
      */
     private String selectScenario() {
-        var num = scenarios.size();
-        var selected = new Random().nextInt(num);
-        return scenarios.get(selected);
+        // scenarios in ascending order
+        // by number of games started with them
+        List<String> scenariosByNumExperiments =
+            jooq.select(Tables.GAMES.SCENARIO)
+                .from(Tables.GAMES)
+                .groupBy(Tables.GAMES.SCENARIO)
+                .orderBy(DSL.count())
+                .fetch(Tables.GAMES.SCENARIO)
+            .stream()
+            .filter(this.scenarios::contains)
+            .collect(Collectors.toList());
+
+        var neverPlayed = this.scenarios
+            .stream()
+            .filter((x) -> !scenariosByNumExperiments.contains(x))
+            .collect(Collectors.toList());
+
+        String scenarioToUse;
+        if (!neverPlayed.isEmpty()) {
+            scenarioToUse = neverPlayed.get(0);
+        } else {
+            scenarioToUse = scenariosByNumExperiments.get(0);
+        }
+        return scenarioToUse;
     }
 
-    private ArchitectConnection selectArchitect() {
-        var num = architectConnections.size();
-        var selected = new Random().nextInt(num);
-        return architectConnections.get(selected);
+    private ArchitectConnection selectArchitect(String scenario) {
+        Set<String> currentArchitects = architectConnections
+            .stream()
+            .map((x) -> x.architectInfo.getInfo())
+            .collect(Collectors.toSet());
+
+        // architect info in ascending order
+        // by number of games started with them
+        List<String> architectsByNumExperiments =
+            jooq.select(Tables.GAMES.ARCHITECT_INFO)
+                .from(Tables.GAMES)
+                .where(Tables.GAMES.SCENARIO.eq(scenario))
+                .groupBy(Tables.GAMES.ARCHITECT_INFO)
+                .orderBy(DSL.count())
+                .fetch(Tables.GAMES.ARCHITECT_INFO)
+                .stream()
+                .filter(currentArchitects::contains)
+                .collect(Collectors.toList());
+
+        logger.debug("architectsByNumExperiments: " + architectsByNumExperiments);
+
+        var neverPlayed = currentArchitects.stream()
+            .filter((x) -> !architectsByNumExperiments.contains(x))
+            .collect(Collectors.toList());
+        logger.debug("never played: " + neverPlayed);
+
+        String architectToUse;
+        if (!neverPlayed.isEmpty()) {
+            architectToUse = neverPlayed.get(0);
+        } else {
+            architectToUse = architectsByNumExperiments.get(0);
+        }
+
+        logger.debug("architectToUse: " + architectToUse);
+
+        return architectConnections.stream()
+            .filter((x) ->
+                x.architectInfo
+                    .getInfo()
+                    .equals(architectToUse))
+                .findFirst()
+                .get();
     }
 
-    /**
-     * A DelegatingStreamObserver acts as a proxy in connections from the Architect to the Client.
-     * All messages are logged into the database and forwarded.
-     */
-    private class DelegatingStreamObserver<E extends MessageOrBuilder>
-                                          implements StreamObserver<E> {
-        private StreamObserver<E> toClient;
-        private int gameId;
-
-        public DelegatingStreamObserver(int gameId,
-                                        StreamObserver<E> toClient) {
-            this.toClient = toClient;
-            this.gameId = gameId;
-        }
-
-        @Override
-        public synchronized void onNext(E value) {
-            if (value instanceof TextMessage) {
-                var v = (TextMessage) value;
-                if (v.getNewGameState() == NewGameState.SuccessfullyFinished) {
-                    startQuestionnaire(gameId, this);
-                }
-            }
-            toClient.onNext(value);
-            log(gameId, value, GameLogsDirection.PassToClient);
-        }
-
-        @Override
-        public void onError(Throwable t) {
-            log(gameId, t, GameLogsDirection.PassToClient);
-            toClient.onError(t);
-        }
-
-        @Override
-        public void onCompleted() {
-            toClient.onCompleted();
-        }
-    }
-
-    private static Timestamp now() {
-        return new Timestamp(System.currentTimeMillis());
+    public static LocalDateTime now() {
+        return LocalDateTime.now();
     }
 
     /**
      * Logs game information to the database.
      */
-    private void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
-        String messageStr = pr.printToString(message);
+    void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
+        String messageStr = "";
+        try {
+            messageStr = com.google.protobuf.util.JsonFormat.printer()
+                .includingDefaultValueFields()
+                .print(message);
+        } catch (InvalidProtocolBufferException e) {
+            logger.error("could convert message to json: " + message);
+        }
+        log(gameid, messageStr, message.getClass().getSimpleName(), direction);
+    }
+
+    void log(int gameid,
+        String messageStr,
+        String messageType,
+        GameLogsDirection direction) {
 
         GameLogsRecord rec = jooq.newRecord(Tables.GAME_LOGS);
         rec.setGameid(gameid);
         rec.setDirection(direction);
-        rec.setMessageType(message.getClass().getSimpleName());
+        rec.setMessageType(messageType);
         rec.setMessage(messageStr);
         rec.setTimestamp(now());
         rec.store();
@@ -584,7 +649,7 @@ public class Broker {
     /**
      * Logs game information to the database.
      */
-    private void log(int gameid, Throwable message, GameLogsDirection direction) {
+    void log(int gameid, Throwable message, GameLogsDirection direction) {
         String messageStr = message.toString();
 
         GameLogsRecord rec = jooq.newRecord(Tables.GAME_LOGS);
@@ -613,7 +678,7 @@ public class Broker {
     private DSLContext setupDatabase() {
         // special case:  If no database was configured at all, use an in-memory db (for testing)
         if (config.getDatabase() == null) {
-            logger.warn("no database configured, will use in-memory database");
+            logger.warn("no database configured, will use temporary in-memory database");
             try {
                 Class.forName("org.h2.Driver");
             } catch (ClassNotFoundException e) {
@@ -634,14 +699,13 @@ public class Broker {
             var url = config.getDatabase().getUrl();
             var user = config.getDatabase().getUsername();
             var password = config.getDatabase().getPassword();
+
             // First, migrate to newest version
-            Flyway flyway = Flyway.configure()
+            Flyway.configure()
                 .dataSource(url, user, password)
-                .schemas("MINECRAFT")
-                .defaultSchema("MINECRAFT")
-                .load();
-            flyway.migrate();
-            flyway.migrate();
+                .load()
+                .migrate();
+
             // second, connect to database
             Connection conn = DriverManager.getConnection(url, user, password);
             DSLContext ret = DSL.using(
@@ -668,9 +732,34 @@ public class Broker {
      */
     public void startQuestionnaire(int gameId,
         DelegatingStreamObserver streamObserver) {
-        logger.info("Starting questionnaire for game {}", gameId);
-        Questionnaire questionnaire = getQuestionnaire(gameId, streamObserver);
-        questionnaires.put(gameId, questionnaire);
+        if (config.getUseInternalQuestionnaire()) {
+            logger.info("Starting questionnaire for game {}", gameId);
+            Questionnaire questionnaire = createQuestionnaire(gameId, streamObserver);
+            questionnaire.start();
+            questionnaires.put(gameId, questionnaire);
+        } else {
+            // We put in a mock questionnaire as null values
+            // are not allowed. Note that this one is not start()ed.
+            Questionnaire questionnaire = new Questionnaire(
+                gameId,
+                new ArrayList<>(),
+                streamObserver, jooq
+            );
+            questionnaires.put(gameId, questionnaire);
+            new Thread(() -> {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                streamObserver.onNext(TextMessage.newBuilder()
+                    .setGameId(gameId)
+                    .setText(
+                        "Thank you for your time! you can hang around or disconnect now.")
+                    // .setNewGameState(NewGameState.QuestionnaireFinished)
+                    .build());
+            }).start();
+        }
     }
 
     /**
@@ -679,7 +768,7 @@ public class Broker {
      * @param streamObserver The stream used to send questions to the player.
      * @return a Questionnaire depending on the scenario
      */
-    private Questionnaire getQuestionnaire(int gameId, DelegatingStreamObserver streamObserver) {
+    private Questionnaire createQuestionnaire(int gameId, DelegatingStreamObserver streamObserver) {
         // Find current scenario
         Result<Record> records = jooq.select()
             .from(Tables.GAMES)
@@ -688,76 +777,7 @@ public class Broker {
         List<String> scenarios = records.getValues(Tables.GAMES.SCENARIO);
 
         // Get matching questionnaire
-        List<String> questions = questionTemplates.get(scenarios.get(0));
-        return new Questionnaire(gameId, questions, streamObserver);
-    }
-
-    public void endQuestionnaire(int game) {
-
-    }
-
-    /**
-     * A Questionnaire is created once the player finishes their game.
-     * It sends initial inforamation and receives all text messages written by the player
-     * from that point onwards.
-     */
-    private class Questionnaire {
-
-        public final int gameId;
-        public List<String> questions;
-        public final DelegatingStreamObserver<TextMessage> stream;
-        private int currQuestion = 0;
-        public List<String> answers = new ArrayList<>();
-
-        public Questionnaire(int gameId,
-                             List<String> questions,
-                             DelegatingStreamObserver<TextMessage> stream) {
-            this.questions = questions;
-            this.stream = stream;
-            this.gameId = gameId;
-            new Thread(() -> {
-                try {
-                    Thread.sleep(4000);
-                    sendQuestion("We would like you to answer a few questions.");
-                    sendQuestion("You can answer them by pressing \"t\","
-                        + " typing the answer and then pressing return.");
-                    Thread.sleep(4000);
-                    sendQuestion(questions.get(currQuestion));
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }).start();
-        }
-
-        /**
-         * processes a text message sent by the player.
-         * @param request The message object forwarded by the BrokerImpl.
-         */
-        public void onNext(TextMessage request) {
-            var answer = request.getText();
-            // TODO: validate answer
-
-            var record = jooq.newRecord(Questionnaires.QUESTIONNAIRES);
-            record.setAnswer(answer);
-            record.setGameid(gameId);
-            record.setQuestion(questions.get(currQuestion));
-            record.setTimestamp(now());
-            record.store();
-
-            answers.add(answer);
-            currQuestion += 1;
-            if (currQuestion == questions.size()) {
-               sendQuestion("Thank you for your time! you can hang around or disconnect now.");
-            } else {
-                sendQuestion(questions.get(currQuestion));
-            }
-        }
-
-        private void sendQuestion(String question) {
-            stream.onNext(TextMessage.newBuilder()
-                .setGameId(gameId)
-                .setText(question)
-                .build());
-        }
+        List<Question> questions = questionTemplates.get(scenarios.get(0));
+        return new Questionnaire(gameId, questions, streamObserver, jooq);
     }
 }
