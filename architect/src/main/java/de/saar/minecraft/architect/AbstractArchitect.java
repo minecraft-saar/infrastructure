@@ -85,8 +85,12 @@ public abstract class AbstractArchitect implements Architect {
                 .setZ(z)
                 .setType(type)
                 .build();
-        synchronized (controlChannel) {
-            controlChannel.onNext(message);
+        synchronized (this) {
+            try {
+                controlChannel.onNext(message);
+            } catch (NullPointerException e) {
+                onControlChannelClosed();
+            }
         }
     }
 
@@ -111,6 +115,13 @@ public abstract class AbstractArchitect implements Architect {
     }
     
     private void onMessageChannelClosed() {
+        if (!playerHasLeft) {
+            playerHasLeft = true;
+            playerLeft();
+        }
+    }
+
+    private void onControlChannelClosed() {
         if (!playerHasLeft) {
             playerHasLeft = true;
             playerLeft();

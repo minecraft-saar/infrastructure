@@ -163,7 +163,7 @@ public class ArchitectServer {
                         .setMessage("No architect running for game ID " + request.getId())
                         .build();
                 responseObserver.onError(StatusProto.toStatusRuntimeException(status));
-                logger.warn("could not find architect for message channel");
+                logger.warn("could not find architect for control channel");
                 return;
             }
 
