@@ -755,7 +755,7 @@ public class Broker {
                 streamObserver.onNext(TextMessage.newBuilder()
                     .setGameId(gameId)
                     .setText(
-                        "Thank you for your time! you can hang around or disconnect now.")
+                        "Thank you for your time! Please make sure you know the secret word before you disconnect.")
                     // .setNewGameState(NewGameState.QuestionnaireFinished)
                     .build());
             }).start();
