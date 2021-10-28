@@ -6,6 +6,10 @@ plugins {
 def grpcVersion = '1.28.1'
 def protocVersion = '3.11.0'
 
+// As of Oct 2021, there is no gRPC binary for Mac Arm.
+// We therefore enforce the use of the Intel binary.
+def archSuffix = osdetector.os == "osx" ? ":osx-x86_64" : ""
+
 dependencies {
     api "io.grpc:grpc-protobuf:${grpcVersion}"
     api "io.grpc:grpc-stub:${grpcVersion}"
@@ -18,9 +22,9 @@ dependencies {
 
 
 protobuf {
-    protoc { artifact = "com.google.protobuf:protoc:${protocVersion}" }
+    protoc { artifact = "com.google.protobuf:protoc:${protocVersion}${archSuffix}" }
     plugins {
-        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}${archSuffix}" }
     }
     generateProtoTasks {
         all()*.plugins { grpc {} }
