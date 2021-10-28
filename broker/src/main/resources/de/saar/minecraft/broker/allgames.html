@@ -21,7 +21,7 @@
     <tbody>
     {% for game in games %}
     <tr>
-        <td><a href="showgame.html?id={{ game.id }}">{{ game.id }}</a> </td>
+        <td><a href="showgame.html?id={{ game.id }}">{{ game.id }}</a> (<a href="showprettygame.html?id={{ game.id }}">pretty</a>)</td>
         <td>{{ game.startTime }}</td>
         <td>{{ game.scenario }}</td>
         <td>{{ game.architectInfo }}</td>

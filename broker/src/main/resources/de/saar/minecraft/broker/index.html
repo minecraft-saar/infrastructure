@@ -12,7 +12,9 @@
 
     <h2>Last 20 games</h2>
     {% for row in latest %}
-        <a href="showgame.html?id={{ row.id }}">{{ row.id }}</a> from {{ row.clientIp }}: {{ row.status }}
+        <a href="showgame.html?id={{ row.id }}">{{ row.id }}</a>
+        (<a href="showprettygame.html?id={{ row.id }}">pretty</a>)
+        from {{ row.clientIp }}: {{ row.status }}
         <a href="showquestionnaire.html?id={{ row.id }}"> questionnaire </a> &emsp;
         <a href="showgamestatistics.html?id={{ row.id }}"> statistics </a>
     <br/>

@@ -39,7 +39,7 @@
         <tbody>
         {% for row in log %}
         <tr>
-            <td>{{ row.timestamp }}</td>
+            <td><a name="{{ row.id }}">{{ row.timestamp }}</a></td>
             <td>{{ row.direction }}</td>
             <td>{{ row.messageType }}</td>
             <td>{{ row.message }}</td>
