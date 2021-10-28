@@ -26,7 +26,7 @@ Architect "{{ game.architectInfo }}" at {{ game.architectHostname }}:{{ game.arc
 
 <br/>
 
-<strong>Game status:</strong> {{ game.status }}<br/>
+<strong>Game status:</strong> {{ game.status }} {% if successful %}<font color="green">(successful)</font>{% else %}<font color="red">(cancelled)</font>{% endif %}<br/>
 <strong>Game duration:</strong> {{ gameDuration }}<br/>
 <strong>Mistakes:</strong> {{ numMistakes }} ({{ numDestroyed }} blocks destroyed)
 </font></p>

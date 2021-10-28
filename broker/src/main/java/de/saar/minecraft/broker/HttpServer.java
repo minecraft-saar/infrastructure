@@ -261,10 +261,14 @@ public class HttpServer {
                 int numMistakes = 0;
                 long millisecondsSinceStart = -1;
                 String linkBase = "/showgame.html?id=" + gameid + "#";
+                boolean successfulGame = false;
 
                 for (GameLogsRecord entry : gameLog) {
                     try {
                         JsonObject object = JsonParser.parseString(entry.getMessage()).getAsJsonObject();
+                        if( object.get("newGameState") != null && "SuccessfullyFinished".equals(object.get("newGameState").getAsString())) {
+                            successfulGame = true;
+                        }
 
                         if (startTime == null) {
                             startTime = entry.getTimestamp();
@@ -283,15 +287,19 @@ public class HttpServer {
                                     text = object.get("message").getAsString();
                                 }
 
+                                // This is how mistakes are counted in GameInformation#getNumMistakes.
                                 if( text.contains("Not there! please remove that block again")) {
                                     numMistakes++;
                                 }
 
-                                StringEscapeUtils.escapeHtml4(text);
+                                // If the previous message was a correct block placement, this text message
+                                // probably starts a new instruction; add a blank link before it to make this more visible.
                                 if( !prettyMessages.isEmpty() && prettyMessages.get(prettyMessages.size()-1).getColor().equals("green")) {
                                     prettyMessages.add(new PrettyMessage("", "", "black", link));
                                 }
 
+                                // escape any HTML in the message and add it to the list
+                                text = StringEscapeUtils.escapeHtml4(text);
                                 prettyMessages.add(new PrettyMessage(timestamp, text, "black", link));
                             }
                         } else if (entry.getMessageType().equals(BlockPlacedMessage.class.getSimpleName())) {
@@ -317,7 +325,8 @@ public class HttpServer {
                 bindings.put("messages", prettyMessages);
                 bindings.put("numDestroyed", numDestroyed);
                 bindings.put("numMistakes", numMistakes);
-                bindings.put("gameDuration", String.format("%02d:%02d.%03d (%d seconds)", millisecondsSinceStart / 60 / 1000, (millisecondsSinceStart / 1000) % 60, millisecondsSinceStart % 1000, millisecondsSinceStart/1000));
+                bindings.put("gameDuration", String.format("%02d:%02d (%d seconds)", millisecondsSinceStart / 60 / 1000, (millisecondsSinceStart / 1000) % 60, millisecondsSinceStart/1000));
+                bindings.put("successful", successfulGame);
 
                 try {
                     response = engine.process("showprettygame.html", new MapBindings(bindings));
