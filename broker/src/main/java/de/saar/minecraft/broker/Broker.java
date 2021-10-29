@@ -130,31 +130,34 @@ public class Broker {
      */
     public void start() throws IOException {
         // First, connect to all architects.
-        for (var asa: config.getArchitectServers()) {
-            var archConn = new ArchitectConnection();
-            ManagedChannel channelToArchitect = ManagedChannelBuilder
-                .forAddress(asa.getHostname(),
-                    asa.getPort())
-                // Channels are secure by default (via SSL/TLS).
-                // we disable TLS to avoid needing certificates.
-                .usePlaintext()
-                .build();
-            archConn.host = asa.getHostname();
-            archConn.port = asa.getPort();
-            archConn.nonblockingArchitectStub = ArchitectGrpc.newStub(channelToArchitect);
-            archConn.blockingArchitectStub = ArchitectGrpc.newBlockingStub(channelToArchitect);
-            // check connection to Architect server and get architectInfo string
-            try {
-                archConn.architectInfo = archConn.blockingArchitectStub.hello(
-                    None.newBuilder().build());
-            } catch (StatusRuntimeException e) {
-                logger.error("Failed to connect to architect server at "
-                    + asa + "\n"
-                    + e.getCause().getMessage());
-                System.exit(1);
+        if( config.getArchitectServers() == null ) {
+            logger.info("No architect servers specified in config file.");
+        } else {
+            for (var asa : config.getArchitectServers()) {
+                var archConn = new ArchitectConnection();
+                ManagedChannel channelToArchitect = ManagedChannelBuilder
+                        .forAddress(asa.getHostname(), asa.getPort())
+                        // Channels are secure by default (via SSL/TLS).
+                        // we disable TLS to avoid needing certificates.
+                        .usePlaintext()
+                        .build();
+                archConn.host = asa.getHostname();
+                archConn.port = asa.getPort();
+                archConn.nonblockingArchitectStub = ArchitectGrpc.newStub(channelToArchitect);
+                archConn.blockingArchitectStub = ArchitectGrpc.newBlockingStub(channelToArchitect);
+                // check connection to Architect server and get architectInfo string
+                try {
+                    archConn.architectInfo = archConn.blockingArchitectStub.hello(
+                            None.newBuilder().build());
+                } catch (StatusRuntimeException e) {
+                    logger.error("Failed to connect to architect server at "
+                            + asa + "\n"
+                            + e.getCause().getMessage());
+                    System.exit(1);
+                }
+                logger.info("Connected to architect server at " + asa);
+                this.architectConnections.add(archConn);
             }
-            logger.info("Connected to architect server at " + asa);
-            this.architectConnections.add(archConn);
         }
 
         // Second open Broker service.
