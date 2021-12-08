@@ -87,7 +87,9 @@ public class Broker {
     public Broker(BrokerConfiguration config) {
         logger.trace("Broker initialization");
         initScenarios(config.getScenarios());
-        initQuestionnaires(config.getScenarios());
+        if(config.getUseInternalQuestionnaire()){
+            initQuestionnaires(config.getScenarios());
+        }
         this.config = config;
         jooq = setupDatabase();
         // Do a random query every 20 minutes to keep the
