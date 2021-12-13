@@ -44,7 +44,7 @@ subprojects {
     apply plugin: 'com.github.johnrengelman.shadow'
     java {
         toolchain {
-            languageVersion = JavaLanguageVersion.of(16)
+            languageVersion = JavaLanguageVersion.of(17)
         }
     }
     group 'de.saar.minecraft.infrastructure'
@@ -111,9 +111,9 @@ subprojects {
     }
     
     dependencies {
-        implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.13.1'
-        implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.13.1'
-        implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.13.1'
+        implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.15.0'
+        implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.15.0'
+        implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.15.0'
         compileOnly "javax.annotation:javax.annotation-api:1.2"
         testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
         testImplementation "org.mockito:mockito-core:2.25.1"
