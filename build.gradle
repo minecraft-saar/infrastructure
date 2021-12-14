@@ -25,7 +25,6 @@ allprojects {
             url "https://maven-central.storage-download.googleapis.com/repos/central/data/" }
         // maven central has packages that are missing from the google mirror
         mavenCentral()
-        jcenter()
         mavenLocal()
     }
     scmVersion {

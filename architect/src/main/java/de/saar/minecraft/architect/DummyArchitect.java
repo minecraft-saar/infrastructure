@@ -6,14 +6,20 @@ import de.saar.minecraft.shared.NewGameState;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.WorldSelectMessage;
 
-
+/**
+ * creates a dummy architect for testing
+ **/
 public class DummyArchitect extends AbstractArchitect {
-    private int waitTime;
+    private final int waitTime;
     private int statusIteration;
-    private int responseFrequency;
+    private final int responseFrequency;
 
     private final boolean endAfterFirstBlock;
 
+    /** creates a dummy architect
+     * @param waitTime time between messages to MC Server in milliseconds
+     * @param endAfterFirstBlock stop server after first placed block
+     * @param responseFrequency do you want to respond to every status update? Use 1, to every second update use 2 etc.**/
     public DummyArchitect(int waitTime, boolean endAfterFirstBlock, int responseFrequency) {
         this.endAfterFirstBlock = endAfterFirstBlock;
         this.waitTime = waitTime;
@@ -21,6 +27,8 @@ public class DummyArchitect extends AbstractArchitect {
         this.responseFrequency = responseFrequency;
     }
 
+    /** creates an architect that responds to every status update and runs for multiple block placements
+     * @param waitTime time between messages to MC Server in milliseconds**/
     public DummyArchitect(int waitTime) {
         this.waitTime = waitTime;
         this.endAfterFirstBlock = false;
@@ -28,6 +36,7 @@ public class DummyArchitect extends AbstractArchitect {
         this.responseFrequency = 1;
     }
 
+    /** basic dummy architect **/
     public DummyArchitect() {
         this(1000);
     }
@@ -48,7 +57,7 @@ public class DummyArchitect extends AbstractArchitect {
         int x = request.getX();
         double xdir = request.getXDirection();
 
-        // send only for every every twentieth status update a message
+        // send only for every twentieth status update a message
         if (++statusIteration < responseFrequency) {
             return;
         }

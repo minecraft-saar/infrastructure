@@ -6,5 +6,7 @@ package de.saar.minecraft.architect;
  */
 @FunctionalInterface
 public interface ArchitectFactory {
-    public Architect build();
+    /** creates architects
+     * @return returns the new architect**/
+    Architect build();
 }

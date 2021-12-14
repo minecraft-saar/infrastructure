@@ -22,15 +22,17 @@ import org.apache.logging.log4j.Logger;
  *
  */
 public class ArchitectServer {
-    private static Logger logger = LogManager.getLogger(ArchitectServer.class);
+    private static final Logger logger = LogManager.getLogger(ArchitectServer.class);
     private Server server;
     private Map<Integer, Architect> runningArchitects;
-    private ArchitectFactory factory;
-    private int port;
+    private final ArchitectFactory factory;
+    private final int port;
 
     /**
      * Constructs an ArchitectServer which is configured to listen to a given port and
      * uses the given ArchitectFactory to spawn new architects for each connecting client.
+     * @param port the port
+     * @param factory the factory for new architects
      */
     public ArchitectServer(int port, ArchitectFactory factory) {
         this.factory = factory;
@@ -40,6 +42,7 @@ public class ArchitectServer {
 
     /**
      * Actually starts the ArchitectServer.
+     * @throws IOException when server can not be started
      */
     public void start() throws IOException {
         server = ServerBuilder.forPort(port)
@@ -71,6 +74,7 @@ public class ArchitectServer {
 
     /**
      * Await termination on the main thread since the grpc library uses daemon threads.
+     * @throws InterruptedException if termination did not work
      */
     public void blockUntilShutdown() throws InterruptedException {
         if (server != null) {
@@ -260,7 +264,10 @@ public class ArchitectServer {
 
 
     /**
-     * Starts an architect server.
+     * Starts a dummy architect server for testing.
+     * @param args first arg is the wait time, second if we want to end after 1 block placed, third is how often we want to respond
+     * @throws IOException if we could not start the server
+     * @throws InterruptedException if we could not shut the server down
      */
     public static void main(String[] args) throws IOException, InterruptedException {
         ArchitectFactory factory;
