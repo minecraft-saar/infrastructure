@@ -13,6 +13,7 @@ import de.saar.minecraft.broker.db.tables.records.GameLogsRecord;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
 import de.saar.minecraft.shared.*;
 import io.github.classgraph.ClassGraph;
+import io.github.classgraph.Resource;
 import io.github.classgraph.ScanResult;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -22,17 +23,13 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-
 import java.io.*;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
@@ -72,7 +69,7 @@ public class Broker {
     }
 
     final BrokerConfiguration config;
-    private DSLContext jooq;
+    private final DSLContext jooq;
 
     private final TextFormat.Printer pr = TextFormat.printer();
     private List<String> scenarios;
@@ -81,11 +78,13 @@ public class Broker {
     /**
      * Builds a new broker from a given configuration.
      * You usually only want one broker object in your system.
+     *
+     * @param config the configuration
      */
     public Broker(BrokerConfiguration config) {
         logger.trace("Broker initialization");
         initScenarios(config.getScenarios());
-        if(config.getUseInternalQuestionnaire()){
+        if (config.getUseInternalQuestionnaire()) {
             initQuestionnaires(config.getScenarios());
         }
         this.config = config;
@@ -95,7 +94,7 @@ public class Broker {
         new Thread(() -> {
             while (true) {
                 try {
-                    Thread.sleep(20*1000*60);
+                    Thread.sleep(20 * 1000 * 60);
                 } catch (InterruptedException e) {
                     //whatever, we don't care
                 }
@@ -119,6 +118,11 @@ public class Broker {
         return jooq;
     }
 
+    /**
+     * Getter for broker config.
+     *
+     * @return the configuration
+     **/
     public BrokerConfiguration getConfig() {
         return config;
     }
@@ -126,11 +130,12 @@ public class Broker {
     /**
      * Starts the broker and tries to connect to the architect. Will exit
      * the program if no architect is available.
+     *
      * @throws IOException in case the broker grpc service cannot be started
      */
     public void start() throws IOException {
         // First, connect to all architects.
-        if( config.getArchitectServers() == null ) {
+        if (config.getArchitectServers() == null) {
             logger.info("No architect servers specified in config file.");
         } else {
             for (var asa : config.getArchitectServers()) {
@@ -176,7 +181,7 @@ public class Broker {
      * currently running.
      */
     public void stop() {
-        for (ArchitectConnection a: architectConnections) {
+        for (ArchitectConnection a : architectConnections) {
             a.blockingArchitectStub.endAllGames(None.getDefaultInstance());
         }
         if (server != null) {
@@ -186,6 +191,8 @@ public class Broker {
 
     /**
      * Await termination on the main thread since the grpc library uses daemon threads.
+     *
+     * @throws InterruptedException when termination fails
      */
     public void blockUntilShutdown() throws InterruptedException {
         if (server != null) {
@@ -221,10 +228,10 @@ public class Broker {
 
             // Select new game
             WorldSelectMessage worldSelectMessage = WorldSelectMessage
-                .newBuilder()
-                .setGameId(id)
-                .setName(scenario)
-                .build();
+                    .newBuilder()
+                    .setGameId(id)
+                    .setName(scenario)
+                    .build();
             // tell architect about the new game
             architect.blockingArchitectStub.startGame(worldSelectMessage);
 
@@ -240,7 +247,7 @@ public class Broker {
 
         @Override
         public void getMessageChannel(GameId request,
-            StreamObserver<TextMessage> responseObserver) {
+                                      StreamObserver<TextMessage> responseObserver) {
             int id = request.getId();
             var so = new DelegatingStreamObserver(id, responseObserver, Broker.this);
             var architect = getNonblockingArchitect(id);
@@ -275,16 +282,16 @@ public class Broker {
 
         private StatusException createNoSuchIdException(int id) {
             return new StatusException(
-                Status
-                    .INVALID_ARGUMENT
-                    .withDescription("No game with ID " + id)
+                    Status
+                            .INVALID_ARGUMENT
+                            .withDescription("No game with ID " + id)
             );
         }
 
         @Override
         public void endGame(GameId request, StreamObserver<None> responseObserver) {
             int id = request.getId();
-            if (! runningGames.containsKey(id)) {
+            if (!runningGames.containsKey(id)) {
                 responseObserver.onError(createNoSuchIdException(id));
                 return;
             }
@@ -307,14 +314,14 @@ public class Broker {
         public void handleStatusInformation(StatusMessage request,
                                             StreamObserver<None> responseObserver) {
             int id = request.getGameId();
-            if (! runningGames.containsKey(id)) {
+            if (!runningGames.containsKey(id)) {
                 responseObserver.onError(createNoSuchIdException(id));
                 return;
             }
             log(id, request, GameLogsDirection.FromClient);
             if (!questionnaires.containsKey(id)) {
                 getNonblockingArchitect(id).handleStatusInformation(
-                    request, responseObserver
+                        request, responseObserver
                 );
             } else {
                 responseObserver.onNext(None.getDefaultInstance());
@@ -326,7 +333,7 @@ public class Broker {
         public void handleBlockPlaced(BlockPlacedMessage request,
                                       StreamObserver<None> responseObserver) {
             int id = request.getGameId();
-            if (! runningGames.containsKey(id)) {
+            if (!runningGames.containsKey(id)) {
                 responseObserver.onError(createNoSuchIdException(id));
                 return;
             }
@@ -343,14 +350,14 @@ public class Broker {
         public void handleBlockDestroyed(BlockDestroyedMessage request,
                                          StreamObserver<None> responseObserver) {
             int id = request.getGameId();
-            if (! runningGames.containsKey(id)) {
+            if (!runningGames.containsKey(id)) {
                 responseObserver.onError(createNoSuchIdException(id));
                 return;
             }
             log(id, request, GameLogsDirection.FromClient);
             if (!questionnaires.containsKey(id)) {
                 getNonblockingArchitect(id).handleBlockDestroyed(
-                    request, responseObserver);
+                        request, responseObserver);
             } else {
                 responseObserver.onNext(None.getDefaultInstance());
                 responseObserver.onCompleted();
@@ -419,10 +426,10 @@ public class Broker {
     private void setGameStatus(int gameid, GameStatus status) {
         // update status in games table
         jooq.update(Tables.GAMES)
-            .set(Tables.GAMES.STATUS, status)
-            .set(Tables.GAMES.MODIFIED, now())
-            .where(Tables.GAMES.ID.equal(gameid))
-            .execute();
+                .set(Tables.GAMES.STATUS, status)
+                .set(Tables.GAMES.MODIFIED, now())
+                .where(Tables.GAMES.ID.equal(gameid))
+                .execute();
 
         // record updating of status in game_logs table
         GameLogsRecord glr = jooq.newRecord(Tables.GAME_LOGS);
@@ -441,43 +448,46 @@ public class Broker {
         questionTemplates = new HashMap<>();
         List<String> questionnairesInResources = null;
         // Check availability of questionnaires
-        String pathQuestionnaires = "de" + File.pathSeparator + "saar" + File.pathSeparator + "minecraft" + File.pathSeparator + "questionnaires";
+        Path path = Paths.get("de", "saar", "minecraft", "questionnaires");
         try (ScanResult scanResult = new ClassGraph()
-            .whitelistPaths(pathQuestionnaires)
-            .scan()) {
+                .whitelistPaths(path.toString())
+                .scan()) {
             questionnairesInResources = scanResult.getAllResources()
-                .filter(x -> x.getURL().getFile().endsWith(".txt"))
-                .getPaths()
-                .stream()
-                .map(x -> x.substring(x.lastIndexOf(File.pathSeparator) + 1, x.length() - 4))
-                .collect(Collectors.toList());
+                    .filter(x -> x.getURL().getFile().endsWith(".txt"))
+                    .getPaths()
+                    .stream()
+                    .map(x -> Paths.get(x).subpath(4, 5).toString())
+                    .map(y -> y.substring(0, y.length() - 4))
+                    .collect(Collectors.toList());
         } catch (Exception exception) {
-            logger.warn("Could not read questionnaires from resources, not performing sanity checks.");
+            logger.warn("Could not read questionnaires from resources, " +
+                    "not performing sanity checks.");
         }
         // Checks
         if (questionnairesInResources == null) {
-            throw(new RuntimeException("No questionnaires available"));
+            throw (new RuntimeException("No questionnaires available"));
         }
-        if (! questionnairesInResources.containsAll(confScenarios)) {
+        if (!questionnairesInResources.containsAll(confScenarios)) {
             confScenarios.removeAll(questionnairesInResources);
             logger.error("You defined scenarios in the configuration without a questionnaire "
-                + confScenarios
+                    + confScenarios
             );
-            throw(new RuntimeException("Missing Questionnaires: " + String.join(", ", confScenarios)));
+            throw (new RuntimeException("Missing Questionnaires: "
+                    + String.join(", ", confScenarios)));
         }
         if (confScenarios.isEmpty()) {
             logger.warn("No scenarios defined in the broker configuration. "
-                + "Will load all questionnaires");
+                    + "Will load all questionnaires");
         } else {
-            questionnairesInResources.stream().filter(confScenarios::contains);
+            questionnairesInResources = questionnairesInResources.stream().filter(confScenarios::contains).collect(Collectors.toList());
             logger.info("Start loading defined questionnaires.");
         }
         // Load questionnaires
-        for (String filename: questionnairesInResources) {
-            try {
-                pathQuestionnaires = pathQuestionnaires + File.pathSeparator;
-                String path = String.format(pathQuestionnaires + "%s.txt", filename);
-                InputStream in = Broker.class.getResourceAsStream(path);
+        for (String filename : questionnairesInResources) {
+            String ending = String.format("%s.txt", filename);
+            String pathQuestionnaires = FileSystems.getDefault().getSeparator() + Paths.get(path.toString(), ending);
+            try{
+                InputStream in = Broker.class.getResourceAsStream(pathQuestionnaires);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
                 List<Question> current = new ArrayList<>();
                 String line;
@@ -492,12 +502,12 @@ public class Broker {
                 questionTemplates.put(filename, current);
             } catch (IOException e) {
                 logger.error("Could not load questionnaire {}", filename);
-                throw(new RuntimeException("Could not load questionnaire: " + filename));
+                throw (new RuntimeException("Could not load questionnaire: " + filename));
             }
         }
 
         logger.info("Using questionnaires for these scenarios: {}",
-            String.join(" ", questionnairesInResources));
+                String.join(" ", questionnairesInResources));
 
     }
 
@@ -507,30 +517,32 @@ public class Broker {
      */
     private void initScenarios(List<String> confScenarios) {
         List<String> scenariosInResources = null;
-        String pathWorlds = "de" + File.pathSeparator + "saar" + File.pathSeparator + "minecraft" + File.pathSeparator + "worlds";
+        Path path = Paths.get("de", "saar", "minecraft", "worlds");
+        //get all scenarios
         try (ScanResult scanResult = new ClassGraph()
-            .whitelistPaths(pathWorlds)
-            .scan()) {
+                .whitelistPaths(path.toString())
+                .scan()) {
             scenariosInResources = scanResult.getAllResources()
-                .filter(x -> x.getURL().getFile().endsWith(".csv"))
-                .getPaths()
-                .stream()
-                .map(x -> x.substring(x.lastIndexOf(File.pathSeparator) + 1, x.length() - 4))
-                .collect(Collectors.toList());
+                    .filter(x -> x.getURL().getFile().endsWith(".csv"))
+                    .getPaths()
+                    .stream()
+                    .map(x -> Paths.get(x).subpath(4, 5).toString())
+                    .map(y -> y.substring(0, y.length() - 4))
+                    .collect(Collectors.toList());
         } catch (Exception exception) {
             logger.warn("Could not read scenarios from resources, not performing sanity checks.");
         }
         // sanity check configuration
         if (scenariosInResources != null
-            && ! scenariosInResources.containsAll(confScenarios)) {
+                && !scenariosInResources.containsAll(confScenarios)) {
             String wrongScenarios = confScenarios.stream()
-                .filter(scenariosInResources::contains)
-                .collect(Collectors.joining(" "));
+                    .filter(scenariosInResources::contains)
+                    .collect(Collectors.joining(" "));
             logger.error("You defined a scenario in the configuration that is "
                     + "not present in the resources: "
                     + wrongScenarios
             );
-            throw(new RuntimeException("Wrong scenario defined"));
+            throw (new RuntimeException("Wrong scenario defined"));
         }
         if (confScenarios.isEmpty()) {
             logger.warn("No scenarios defined in the broker configuration.  Will use all of them");
@@ -552,19 +564,19 @@ public class Broker {
         // scenarios in ascending order
         // by number of games started with them
         List<String> scenariosByNumExperiments =
-            jooq.select(Tables.GAMES.SCENARIO)
-                .from(Tables.GAMES)
-                .groupBy(Tables.GAMES.SCENARIO)
-                .orderBy(DSL.count())
-                .fetch(Tables.GAMES.SCENARIO)
-            .stream()
-            .filter(this.scenarios::contains)
-            .collect(Collectors.toList());
+                jooq.select(Tables.GAMES.SCENARIO)
+                        .from(Tables.GAMES)
+                        .groupBy(Tables.GAMES.SCENARIO)
+                        .orderBy(DSL.count())
+                        .fetch(Tables.GAMES.SCENARIO)
+                        .stream()
+                        .filter(this.scenarios::contains)
+                        .collect(Collectors.toList());
 
         var neverPlayed = this.scenarios
-            .stream()
-            .filter((x) -> !scenariosByNumExperiments.contains(x))
-            .collect(Collectors.toList());
+                .stream()
+                .filter((x) -> !scenariosByNumExperiments.contains(x))
+                .collect(Collectors.toList());
 
         String scenarioToUse;
         if (!neverPlayed.isEmpty()) {
@@ -577,28 +589,28 @@ public class Broker {
 
     private ArchitectConnection selectArchitect(String scenario) {
         Set<String> currentArchitects = architectConnections
-            .stream()
-            .map((x) -> x.architectInfo.getInfo())
-            .collect(Collectors.toSet());
+                .stream()
+                .map((x) -> x.architectInfo.getInfo())
+                .collect(Collectors.toSet());
 
         // architect info in ascending order
         // by number of games started with them
         List<String> architectsByNumExperiments =
-            jooq.select(Tables.GAMES.ARCHITECT_INFO)
-                .from(Tables.GAMES)
-                .where(Tables.GAMES.SCENARIO.eq(scenario))
-                .groupBy(Tables.GAMES.ARCHITECT_INFO)
-                .orderBy(DSL.count())
-                .fetch(Tables.GAMES.ARCHITECT_INFO)
-                .stream()
-                .filter(currentArchitects::contains)
-                .collect(Collectors.toList());
+                jooq.select(Tables.GAMES.ARCHITECT_INFO)
+                        .from(Tables.GAMES)
+                        .where(Tables.GAMES.SCENARIO.eq(scenario))
+                        .groupBy(Tables.GAMES.ARCHITECT_INFO)
+                        .orderBy(DSL.count())
+                        .fetch(Tables.GAMES.ARCHITECT_INFO)
+                        .stream()
+                        .filter(currentArchitects::contains)
+                        .collect(Collectors.toList());
 
         logger.debug("architectsByNumExperiments: " + architectsByNumExperiments);
 
         var neverPlayed = currentArchitects.stream()
-            .filter((x) -> !architectsByNumExperiments.contains(x))
-            .collect(Collectors.toList());
+                .filter((x) -> !architectsByNumExperiments.contains(x))
+                .collect(Collectors.toList());
         logger.debug("never played: " + neverPlayed);
 
         String architectToUse;
@@ -611,14 +623,19 @@ public class Broker {
         logger.debug("architectToUse: " + architectToUse);
 
         return architectConnections.stream()
-            .filter((x) ->
-                x.architectInfo
-                    .getInfo()
-                    .equals(architectToUse))
+                .filter((x) ->
+                        x.architectInfo
+                                .getInfo()
+                                .equals(architectToUse))
                 .findFirst()
                 .get();
     }
 
+    /**
+     * wrapper for localDateTime Now.
+     *
+     * @return the time
+     **/
     public static LocalDateTime now() {
         return LocalDateTime.now();
     }
@@ -630,8 +647,8 @@ public class Broker {
         String messageStr = "";
         try {
             messageStr = com.google.protobuf.util.JsonFormat.printer()
-                .includingDefaultValueFields()
-                .print(message);
+                    .includingDefaultValueFields()
+                    .print(message);
         } catch (InvalidProtocolBufferException e) {
             logger.error("could convert message to json: " + message);
         }
@@ -639,9 +656,9 @@ public class Broker {
     }
 
     void log(int gameid,
-        String messageStr,
-        String messageType,
-        GameLogsDirection direction) {
+             String messageStr,
+             String messageType,
+             GameLogsDirection direction) {
 
         GameLogsRecord rec = jooq.newRecord(Tables.GAME_LOGS);
         rec.setGameid(gameid);
@@ -669,10 +686,14 @@ public class Broker {
 
     /**
      * runs the broker, ignores all arguments.
+     *
+     * @param args args are ignored
+     * @throws IOException          if broker config cannot be read
+     * @throws InterruptedException shutdown goes wrong
      */
     public static void main(String[] args) throws IOException, InterruptedException {
         BrokerConfiguration config = BrokerConfiguration.loadYaml(
-            new FileReader("broker-config.yaml")
+                new FileReader("broker-config.yaml")
         );
 
         Broker server = new Broker(config);
@@ -708,19 +729,19 @@ public class Broker {
 
             // First, migrate to newest version
             Flyway.configure()
-                .dataSource(url, user, password)
-                .load()
-                .migrate();
+                    .dataSource(url, user, password)
+                    .load()
+                    .migrate();
 
             // second, connect to database
             Connection conn = DriverManager.getConnection(url, user, password);
             DSLContext ret = DSL.using(
-                conn,
-                SQLDialect.valueOf(config.getDatabase().getSqlDialect())
+                    conn,
+                    SQLDialect.valueOf(config.getDatabase().getSqlDialect())
             );
             logger.info("Connected to {} database at {}.",
-                config.getDatabase().getSqlDialect(),
-                config.getDatabase().getUrl());
+                    config.getDatabase().getSqlDialect(),
+                    config.getDatabase().getUrl());
             return ret;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -733,11 +754,12 @@ public class Broker {
     /**
      * initializes a new Questionnaire object that takes
      * over asking and storing answers to questions.
-     * @param gameId The id of the game for which the questionnaire is needed.
+     *
+     * @param gameId         The id of the game for which the questionnaire is needed.
      * @param streamObserver The stream used to send questions to the player.
      */
     public void startQuestionnaire(int gameId,
-        DelegatingStreamObserver streamObserver) {
+                                   DelegatingStreamObserver streamObserver) {
         if (config.getUseInternalQuestionnaire()) {
             logger.info("Starting questionnaire for game {}", gameId);
             Questionnaire questionnaire = createQuestionnaire(gameId, streamObserver);
@@ -747,9 +769,9 @@ public class Broker {
             // We put in a mock questionnaire as null values
             // are not allowed. Note that this one is not start()ed.
             Questionnaire questionnaire = new Questionnaire(
-                gameId,
-                new ArrayList<>(),
-                streamObserver, jooq
+                    gameId,
+                    new ArrayList<>(),
+                    streamObserver, jooq
             );
             questionnaires.put(gameId, questionnaire);
             new Thread(() -> {
@@ -759,27 +781,28 @@ public class Broker {
                     e.printStackTrace();
                 }
                 streamObserver.onNext(TextMessage.newBuilder()
-                    .setGameId(gameId)
-                    .setText(
-                        "Thank you for your time! Please make sure you know the secret word before you disconnect.")
-                    // .setNewGameState(NewGameState.QuestionnaireFinished)
-                    .build());
+                        .setGameId(gameId)
+                        .setText("Thank you for your time! " +
+                                "Please make sure you know the secret word before you disconnect.")
+                        // .setNewGameState(NewGameState.QuestionnaireFinished)
+                        .build());
             }).start();
         }
     }
 
     /**
      * returns a questionnaire for a given game.
-     * @param gameId Used to find the correct scenario
+     *
+     * @param gameId         Used to find the correct scenario
      * @param streamObserver The stream used to send questions to the player.
      * @return a Questionnaire depending on the scenario
      */
     private Questionnaire createQuestionnaire(int gameId, DelegatingStreamObserver streamObserver) {
         // Find current scenario
         Result<Record> records = jooq.select()
-            .from(Tables.GAMES)
-            .where(Tables.GAMES.ID.eq(gameId))
-            .fetch();
+                .from(Tables.GAMES)
+                .where(Tables.GAMES.ID.eq(gameId))
+                .fetch();
         List<String> scenarios = records.getValues(Tables.GAMES.SCENARIO);
 
         // Get matching questionnaire
