@@ -2,9 +2,9 @@ package de.saar.minecraft.architect;
 
 import de.saar.minecraft.shared.BlockDestroyedMessage;
 import de.saar.minecraft.shared.BlockPlacedMessage;
+import de.saar.minecraft.shared.ProtectBlockMessage;
 import de.saar.minecraft.shared.StatusMessage;
 import de.saar.minecraft.shared.TextMessage;
-import de.saar.minecraft.shared.ProtectBlockMessage;
 import de.saar.minecraft.shared.WorldSelectMessage;
 import io.grpc.stub.StreamObserver;
 
@@ -23,12 +23,13 @@ public interface Architect {
      * This method is guaranteed to be called before any of the other methods
      * of this interface.
      *
-     * @param request is the message containing request.id = id of the game we create an architect for and request.name being the scenario we want an architect for
+     * @param request is the message containing request.id = id of the game we create an architect
+     *               for and request.name being the scenario we want an architect for.
      */
     void initialize(WorldSelectMessage request);
 
     /**
-     * the player is ready now and you can start giving instructions
+     * the player is ready now and you can start giving instructions.
      **/
     void playerReady();
 
@@ -39,14 +40,14 @@ public interface Architect {
     void shutdown();
 
     /**
-     * initialize message channel used for sending and receiving messages from the MC server
+     * initialize message channel used for sending and receiving messages from the MC server.
      *
      * @param messageChannel the message channel
      **/
     void setMessageChannel(StreamObserver<TextMessage> messageChannel);
 
     /**
-     * initialize control channel for block changes the MC server should do
+     * initialize control channel for block changes the MC server should do.
      *
      * @param controlChannel the control channel
      **/
@@ -59,8 +60,9 @@ public interface Architect {
      * computation, and then send any strings you like to the
      * responseObserver.
      *
-     * @param request contains: id, being the game ID; x,y,z are the coordinates' location where the player is standing ;
-     *                x-, y-, zDirection is a unit-vector that points into the direction the player is facing
+     * @param request contains: id, being the game ID; x,y,z are the coordinates' location
+     *               where the player is standing;
+     *       x-, y-, zDirection is a unit-vector that points into the direction the player is facing
      */
     void handleStatusInformation(StatusMessage request);
 

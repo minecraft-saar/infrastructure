@@ -22,11 +22,9 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+
+import java.io.*;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -443,14 +441,15 @@ public class Broker {
         questionTemplates = new HashMap<>();
         List<String> questionnairesInResources = null;
         // Check availability of questionnaires
+        String pathQuestionnaires = "de" + File.pathSeparator + "saar" + File.pathSeparator + "minecraft" + File.pathSeparator + "questionnaires";
         try (ScanResult scanResult = new ClassGraph()
-            .whitelistPaths("de/saar/minecraft/questionnaires")
+            .whitelistPaths(pathQuestionnaires)
             .scan()) {
             questionnairesInResources = scanResult.getAllResources()
                 .filter(x -> x.getURL().getFile().endsWith(".txt"))
                 .getPaths()
                 .stream()
-                .map(x -> x.substring(x.lastIndexOf("/") + 1, x.length() - 4))
+                .map(x -> x.substring(x.lastIndexOf(File.pathSeparator) + 1, x.length() - 4))
                 .collect(Collectors.toList());
         } catch (Exception exception) {
             logger.warn("Could not read questionnaires from resources, not performing sanity checks.");
@@ -476,7 +475,8 @@ public class Broker {
         // Load questionnaires
         for (String filename: questionnairesInResources) {
             try {
-                String path = String.format("/de/saar/minecraft/questionnaires/%s.txt", filename);
+                pathQuestionnaires = pathQuestionnaires + File.pathSeparator;
+                String path = String.format(pathQuestionnaires + "%s.txt", filename);
                 InputStream in = Broker.class.getResourceAsStream(path);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
                 List<Question> current = new ArrayList<>();
@@ -507,14 +507,15 @@ public class Broker {
      */
     private void initScenarios(List<String> confScenarios) {
         List<String> scenariosInResources = null;
+        String pathWorlds = "de" + File.pathSeparator + "saar" + File.pathSeparator + "minecraft" + File.pathSeparator + "worlds";
         try (ScanResult scanResult = new ClassGraph()
-            .whitelistPaths("de/saar/minecraft/worlds")
+            .whitelistPaths(pathWorlds)
             .scan()) {
             scenariosInResources = scanResult.getAllResources()
                 .filter(x -> x.getURL().getFile().endsWith(".csv"))
                 .getPaths()
                 .stream()
-                .map(x -> x.substring(x.lastIndexOf("/") + 1, x.length() - 4))
+                .map(x -> x.substring(x.lastIndexOf(File.pathSeparator) + 1, x.length() - 4))
                 .collect(Collectors.toList());
         } catch (Exception exception) {
             logger.warn("Could not read scenarios from resources, not performing sanity checks.");

@@ -1,24 +1,32 @@
 package de.saar.minecraft.architect;
 
 import de.saar.minecraft.shared.NewGameState;
-import de.saar.minecraft.shared.TextMessage;
 import de.saar.minecraft.shared.ProtectBlockMessage;
+import de.saar.minecraft.shared.TextMessage;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * defines some basic functionalities of the architect such as logging and passing messages along
+ * defines some basic functionalities of the architect such as logging and passing messages along.
  **/
 public abstract class AbstractArchitect implements Architect {
-    /** channel for message exchange with the MC server**/
+    /**
+     * channel for message exchange with the MC server.
+     **/
     protected StreamObserver<TextMessage> messageChannel;
-    /** channel messages about block type changes the MC server should do**/
+    /**
+     * channel messages about block type changes the MC server should do.
+     **/
     protected StreamObserver<ProtectBlockMessage> controlChannel;
-    /** id of the game we are connected to**/
+    /**
+     * id of the game we are connected to.
+     **/
     protected int gameId;
     private static final Logger logger = LogManager.getLogger(AbstractArchitect.class);
-    /** has the player left?**/
+    /**
+     * has the player left?.
+     **/
     protected boolean playerHasLeft = false;
 
     @Override
@@ -32,8 +40,12 @@ public abstract class AbstractArchitect implements Architect {
             controlChannel = null;
         }
     }
-    /**Save ID of the game we are connected to
-     * @param gameId  id of the game **/
+
+    /**
+     * Save ID of the game we are connected to.
+     *
+     * @param gameId id of the game
+     **/
     public void setGameId(int gameId) {
         this.gameId = gameId;
     }
@@ -92,7 +104,7 @@ public abstract class AbstractArchitect implements Architect {
      * @param x    x coordinate of block
      * @param y    y coordinate of block
      * @param z    z coordinate of block
-     * @param type the block will be turned to this block type. Possible types are listed in org.bukkit.Material
+     * @param type the block will be turned to this type. Types are listed in org.bukkit.Material
      */
     protected void sendControlMessage(int x, int y, int z, String type) {
         ProtectBlockMessage message = ProtectBlockMessage.newBuilder()
