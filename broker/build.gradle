@@ -1,21 +1,24 @@
 plugins {
     // Provide convenience executables for trying out the examples.
     id 'application'
-    id 'nu.studer.jooq' version '5.2.1'
+    id 'nu.studer.jooq' version '6.0.1'
 }
+
+def flywayVersion = '8.3.0'
+def jooqVersion = '3.15.5'
 
 dependencies {
     implementation project(path: ':networking')
     implementation 'com.google.protobuf:protobuf-java-util:3.11.0'
 
     // database stuff
-    implementation 'org.jooq:jooq:3.14.11'
-    implementation 'org.jooq:jooq-meta:3.14.11'
-    jooqGenerator 'org.jooq:jooq-meta-extensions:3.14.11'
-    implementation 'org.jooq:jooq-codegen:3.14.11'
-    implementation 'mysql:mysql-connector-java:5.1.6'
-    implementation 'org.flywaydb:flyway-core:6.1.4'
+    implementation "org.jooq:jooq:${jooqVersion}"
+    implementation "org.jooq:jooq-meta:${jooqVersion}"
+    jooqGenerator "org.jooq:jooq-meta-extensions:${jooqVersion}"
+    implementation "org.jooq:jooq-codegen:${jooqVersion}"
 
+    implementation "org.flywaydb:flyway-core:${flywayVersion}"
+    implementation "org.flywaydb:flyway-mysql:${flywayVersion}"
 
     implementation 'org.mariadb.jdbc:mariadb-java-client:2.6.0'
     jooqGenerator 'org.mariadb.jdbc:mariadb-java-client:2.6.0'
@@ -44,7 +47,7 @@ mainClassName = "de.saar.minecraft.broker.Broker"
 
 
 jooq {
-    version = '3.14.11'
+    version = jooqVersion
     configurations {
         main {
             generationTool {

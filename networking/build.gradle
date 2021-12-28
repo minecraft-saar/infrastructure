@@ -3,7 +3,7 @@ plugins {
 	id 'com.google.protobuf' version '0.8.16'
 }
 
-def grpcVersion = '1.28.1'
+def grpcVersion = '1.43.1'
 def protocVersion = '3.11.0'
 
 // As of Oct 2021, there is no gRPC binary for Mac Arm.
