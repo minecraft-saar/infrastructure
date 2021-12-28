@@ -4,8 +4,7 @@ import de.saar.minecraft.shared.NewGameState;
 import de.saar.minecraft.shared.ProtectBlockMessage;
 import de.saar.minecraft.shared.TextMessage;
 import io.grpc.stub.StreamObserver;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.tinylog.Logger;
 
 /**
  * defines some basic functionalities of the architect such as logging and passing messages along.
@@ -23,7 +22,7 @@ public abstract class AbstractArchitect implements Architect {
      * id of the game we are connected to.
      **/
     protected int gameId;
-    private static final Logger logger = LogManager.getLogger(AbstractArchitect.class);
+//    private static final Logger logger = LogManager.getLogger(AbstractArchitect.class);
     /**
      * has the player left?.
      **/
@@ -53,7 +52,7 @@ public abstract class AbstractArchitect implements Architect {
 
     @Override
     public void setMessageChannel(StreamObserver<TextMessage> messageChannel) {
-        logger.debug("setting message channel");
+        Logger.debug("setting message channel");
         this.messageChannel = messageChannel;
     }
 

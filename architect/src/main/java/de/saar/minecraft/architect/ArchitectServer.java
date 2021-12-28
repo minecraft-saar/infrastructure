@@ -17,8 +17,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.tinylog.Logger;
 
 /**
  * A server which provides access to Architects of one type.
@@ -29,7 +28,7 @@ import org.apache.logging.log4j.Logger;
  *
  */
 public class ArchitectServer {
-    private static final Logger logger = LogManager.getLogger(ArchitectServer.class);
+//    private static final Logger logger = LogManager.getLogger(ArchitectServer.class);
     private Server server;
     private Map<Integer, Architect> runningArchitects;
     private final ArchitectFactory factory;
@@ -66,8 +65,8 @@ public class ArchitectServer {
 
         String info = factory.build().getArchitectInformation();
 
-        logger.info("Architect server running on port {}.", port);
-        logger.info(info);
+        Logger.info("Architect server running on port {}.", port);
+        Logger.info(info);
     }
 
     /**
@@ -123,7 +122,7 @@ public class ArchitectServer {
             responseObserver.onCompleted();
             // perfom expensive initialization after letting the broker return.
             arch.initialize(request);
-            logger.info("architect initialized for id {}: {}", request.getGameId(), arch);
+            Logger.info("architect initialized for id {}: {}", request.getGameId(), arch);
         }
 
         @Override
@@ -140,14 +139,15 @@ public class ArchitectServer {
                     .setMessage("No architect running for game ID " + request.getId())
                     .build();
                 responseObserver.onError(StatusProto.toStatusRuntimeException(status));
-                logger.warn("could not find architect for message channel");
+                Logger.warn("could not find architect for message channel");
             }
         }
 
         @Override
         public void getMessageChannel(GameId request,
             StreamObserver<TextMessage> responseObserver) {
-            logger.info("architectServer getMessageChannel");
+            Logger.info("architectServer getMessageChannel");
+
             var architect = runningArchitects.get(request.getId());
             if (architect == null) {
                 Status status = Status.newBuilder()
@@ -155,18 +155,18 @@ public class ArchitectServer {
                     .setMessage("No architect running for game ID " + request.getId())
                     .build();
                 responseObserver.onError(StatusProto.toStatusRuntimeException(status));
-                logger.warn("could not find architect for message channel");
+                Logger.warn("could not find architect for message channel");
                 return;
             }
 
             architect.setMessageChannel(responseObserver);
-            logger.info("set the message channel");
+            Logger.info("set the message channel");
         }
 
         @Override
-        public void getControlChannel(GameId request,
-                                      StreamObserver<ProtectBlockMessage> responseObserver) {
-            logger.info("architectServer getControlChannel");
+        public void getControlChannel(GameId request, StreamObserver<ProtectBlockMessage> responseObserver) {
+            Logger.info("architectServer getControlChannel");
+
             var architect = runningArchitects.get(request.getId());
             if (architect == null) {
                 Status status = Status.newBuilder()
@@ -174,12 +174,12 @@ public class ArchitectServer {
                         .setMessage("No architect running for game ID " + request.getId())
                         .build();
                 responseObserver.onError(StatusProto.toStatusRuntimeException(status));
-                logger.warn("could not find architect for control channel");
+                Logger.warn("could not find architect for control channel");
                 return;
             }
 
             architect.setControlChannel(responseObserver);
-            logger.info("set the message channel");
+            Logger.info("set the message channel");
         }
 
         /**
@@ -195,8 +195,11 @@ public class ArchitectServer {
                 responseObserver.onError(new RuntimeException("Incorrect ID"));
                 return;
             }
+
             runningArchitects.remove(request.getId());
-            logger.info("architect for id {} finished", request.getId());
+
+            Logger.info("architect for id {} finished", request.getId());
+
             responseObserver.onNext(None.newBuilder().build());
             responseObserver.onCompleted();
         }
@@ -283,8 +286,8 @@ public class ArchitectServer {
             int waitTime = Integer.parseInt(args[0]);
             boolean endAfterFirstBlock = Boolean.parseBoolean(args[1]);
             int responseFrequency = Integer.parseInt(args[2]);
-            logger.info("waitTime: {}", waitTime);
-            logger.info("endAfterFirstBlock: {}", endAfterFirstBlock);
+            Logger.info("waitTime: {}", waitTime);
+            Logger.info("endAfterFirstBlock: {}", endAfterFirstBlock);
             factory = () -> new DummyArchitect(waitTime, endAfterFirstBlock, responseFrequency);
         } else {
             factory = DummyArchitect::new;

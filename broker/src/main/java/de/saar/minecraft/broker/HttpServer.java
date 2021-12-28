@@ -29,14 +29,11 @@ import java.net.InetSocketAddress;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-
 import org.apache.commons.text.StringEscapeUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jooq.Result;
+import org.tinylog.Logger;
 
 public class HttpServer {
-    private static final Logger logger = LogManager.getLogger(HttpServer.class);
     private CarrotEngine engine;
     private Broker broker;
 
@@ -78,7 +75,7 @@ public class HttpServer {
                 .setResourceLocator(makeResourceLocator())
                 .build());
 
-        logger.info("HTTP server running on port " + port + ".");
+        Logger.info("HTTP server running on port {}.", port);
     }
 
     private ResourceLocator.Builder makeResourceLocator() {
@@ -143,7 +140,7 @@ public class HttpServer {
             } catch (Exception e) {
                 var error = "Could not fetch latest games.  Is the DB schema up to date?\n"
                     + e.toString();
-                logger.error(error);
+                Logger.error(error);
                 return error;
             }
 
@@ -414,7 +411,7 @@ public class HttpServer {
             } catch (Exception e) {
                 var error = "Could not fetch games.  Is the DB schema up to date?\n"
                     + e.toString();
-                logger.error(error);
+                Logger.error(error);
                 return error;
             }
 

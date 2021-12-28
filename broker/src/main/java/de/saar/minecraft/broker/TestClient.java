@@ -17,8 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.tinylog.Logger;
 
 /**
  * A test client for the matchmaker. This is a mockup class that generates messages that would
@@ -28,8 +27,6 @@ import org.apache.logging.log4j.Logger;
  * Ctrl-D to quit the client.
  */
 public class TestClient {
-
-    private static Logger logger = LogManager.getLogger(TestClient.class);
     private ManagedChannel channel;
     private BrokerGrpc.BrokerBlockingStub blockingStub;
     private BrokerGrpc.BrokerStub nonblockingStub;
@@ -85,7 +82,7 @@ public class TestClient {
         try {
             hostname = InetAddress.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
-            logger.error("could not determine address of localhost");
+            Logger.error("Could not determine address of localhost.");
             System.exit(1);
         }
 
@@ -98,7 +95,7 @@ public class TestClient {
         try {
             worldSelectMessage = blockingStub.startGame(gameData);
         } catch (StatusRuntimeException e) {
-            logger.error("RPC failed: " + e.getStatus());
+            Logger.error("RPC failed: {}", e.getStatus());
             return -1;
         }
         int gameId = worldSelectMessage.getGameId();
@@ -156,7 +153,8 @@ public class TestClient {
             .setZ(z)
             .setType(type)
             .build();
-        logger.info("message {}", message);
+
+        Logger.info("message {}", message);
         nonblockingStub.handleBlockPlaced(message, new NoneObserver());
     }
 
@@ -184,7 +182,7 @@ public class TestClient {
 
         @Override
         public void onError(Throwable t) {
-            logger.error(t);
+            Logger.error(t);
         }
 
         @Override
@@ -206,7 +204,7 @@ public class TestClient {
 
         @Override
         public void onError(Throwable t) {
-            logger.error(t.toString());
+            Logger.error(t.toString());
         }
 
         @Override

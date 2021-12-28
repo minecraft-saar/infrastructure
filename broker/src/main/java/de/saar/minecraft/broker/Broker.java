@@ -32,15 +32,13 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.flywaydb.core.Flyway;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.jooq.Result;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
-
+import org.tinylog.Logger;
 
 /**
  * A broker is a singleton object organizing experiments.
@@ -48,7 +46,6 @@ import org.jooq.impl.DSL;
  * which experiment to run when a new user enters the Minecraft server.
  */
 public class Broker {
-    private static Logger logger = LogManager.getLogger(Broker.class);
     private static final String MESSAGE_TYPE_ERROR = "ERROR";
     private static final String MESSAGE_TYPE_LOG = "LOG";
 
@@ -82,7 +79,8 @@ public class Broker {
      * @param config the configuration
      */
     public Broker(BrokerConfiguration config) {
-        logger.trace("Broker initialization");
+        Logger.trace("Broker initialization");
+
         initScenarios(config.getScenarios());
         if (config.getUseInternalQuestionnaire()) {
             initQuestionnaires(config.getScenarios());
@@ -104,12 +102,12 @@ public class Broker {
 
         // start web server
         if (config.getHttpPort() == 0) {
-            logger.warn("No HTTP port specified, will run without HTTP server.");
+            Logger.warn("No HTTP port specified, will run without HTTP server.");
         } else {
             try {
                 new HttpServer().start(this);
             } catch (IOException e) {
-                logger.warn("Could not open HTTP server (port in use?), will run without it.");
+                Logger.warn("Could not open HTTP server (port in use?), will run without it.");
             }
         }
     }
@@ -136,7 +134,7 @@ public class Broker {
     public void start() throws IOException {
         // First, connect to all architects.
         if (config.getArchitectServers() == null) {
-            logger.info("No architect servers specified in config file.");
+            Logger.info("No architect servers specified in config file.");
         } else {
             for (var asa : config.getArchitectServers()) {
                 var archConn = new ArchitectConnection();
@@ -155,12 +153,11 @@ public class Broker {
                     archConn.architectInfo = archConn.blockingArchitectStub.hello(
                             None.newBuilder().build());
                 } catch (StatusRuntimeException e) {
-                    logger.error("Failed to connect to architect server at "
-                            + asa + "\n"
-                            + e.getCause().getMessage());
+                    Logger.error("Failed to connect to architect server at {}\n{}",
+                            asa, e.getCause().getMessage());
                     System.exit(1);
                 }
-                logger.info("Connected to architect server at " + asa);
+                Logger.info("Connected to architect server at {}", asa);
                 this.architectConnections.add(archConn);
             }
         }
@@ -173,7 +170,7 @@ public class Broker {
                 .start();
         Runtime.getRuntime().addShutdownHook(new Thread(Broker.this::stop));
 
-        logger.info("Broker service running.");
+        Logger.info("Broker service running.");
     }
 
     /**
@@ -460,7 +457,7 @@ public class Broker {
                     .map(y -> y.substring(0, y.length() - 4))
                     .collect(Collectors.toList());
         } catch (Exception exception) {
-            logger.warn("Could not read questionnaires from resources, " +
+            Logger.warn("Could not read questionnaires from resources, " +
                     "not performing sanity checks.");
         }
         // Checks
@@ -469,18 +466,18 @@ public class Broker {
         }
         if (!questionnairesInResources.containsAll(confScenarios)) {
             confScenarios.removeAll(questionnairesInResources);
-            logger.error("You defined scenarios in the configuration without a questionnaire "
-                    + confScenarios
+            Logger.error("You defined scenarios in the configuration without a questionnaire {}",
+                    confScenarios
             );
             throw (new RuntimeException("Missing Questionnaires: "
                     + String.join(", ", confScenarios)));
         }
         if (confScenarios.isEmpty()) {
-            logger.warn("No scenarios defined in the broker configuration. "
+            Logger.warn("No scenarios defined in the broker configuration. "
                     + "Will load all questionnaires");
         } else {
             questionnairesInResources = questionnairesInResources.stream().filter(confScenarios::contains).collect(Collectors.toList());
-            logger.info("Start loading defined questionnaires.");
+            Logger.info("Start loading defined questionnaires.");
         }
         // Load questionnaires
         for (String filename : questionnairesInResources) {
@@ -496,17 +493,17 @@ public class Broker {
                     if (line.strip().length() > 0) {
                         current.add(new Question(line));
                     }
-                    logger.debug("Line: {}", line);
+                    Logger.debug("Line: {}", line);
                 }
                 reader.close();
                 questionTemplates.put(filename, current);
             } catch (IOException e) {
-                logger.error("Could not load questionnaire {}", filename);
+                Logger.error("Could not load questionnaire {}", filename);
                 throw (new RuntimeException("Could not load questionnaire: " + filename));
             }
         }
 
-        logger.info("Using questionnaires for these scenarios: {}",
+        Logger.info("Using questionnaires for these scenarios: {}",
                 String.join(" ", questionnairesInResources));
 
     }
@@ -530,7 +527,7 @@ public class Broker {
                     .map(y -> y.substring(0, y.length() - 4))
                     .collect(Collectors.toList());
         } catch (Exception exception) {
-            logger.warn("Could not read scenarios from resources, not performing sanity checks.");
+            Logger.warn("Could not read scenarios from resources, not performing sanity checks.");
         }
         // sanity check configuration
         if (scenariosInResources != null
@@ -538,23 +535,25 @@ public class Broker {
             String wrongScenarios = confScenarios.stream()
                     .filter(scenariosInResources::contains)
                     .collect(Collectors.joining(" "));
-            logger.error("You defined a scenario in the configuration that is "
-                    + "not present in the resources: "
-                    + wrongScenarios
+            Logger.error("You defined a scenario in the configuration that is "
+                    + "not present in the resources: {}",
+                    wrongScenarios
             );
             throw (new RuntimeException("Wrong scenario defined"));
         }
         if (confScenarios.isEmpty()) {
-            logger.warn("No scenarios defined in the broker configuration.  Will use all of them");
+            Logger.warn("No scenarios defined in the broker configuration.  Will use all of them");
+
             if (scenariosInResources == null) {
-                logger.error("No scenarios defined and resources not readable, aborting");
+                Logger.error("No scenarios defined and resources not readable, aborting.");
                 throw new RuntimeException("Could not determine scenarios");
             }
             scenarios = scenariosInResources;
         } else {
             scenarios = confScenarios;
         }
-        logger.info("Using these scenarios: {}", String.join(" ", scenarios));
+
+        Logger.info("Using these scenarios: {}", String.join(" ", scenarios));
     }
 
     /**
@@ -606,12 +605,13 @@ public class Broker {
                         .filter(currentArchitects::contains)
                         .collect(Collectors.toList());
 
-        logger.debug("architectsByNumExperiments: " + architectsByNumExperiments);
+        Logger.debug("architectsByNumExperiments: {}", architectsByNumExperiments);
 
         var neverPlayed = currentArchitects.stream()
                 .filter((x) -> !architectsByNumExperiments.contains(x))
                 .collect(Collectors.toList());
-        logger.debug("never played: " + neverPlayed);
+
+        Logger.debug("never played: {}", neverPlayed);
 
         String architectToUse;
         if (!neverPlayed.isEmpty()) {
@@ -620,7 +620,7 @@ public class Broker {
             architectToUse = architectsByNumExperiments.get(0);
         }
 
-        logger.debug("architectToUse: " + architectToUse);
+        Logger.debug("architectToUse: {}", architectToUse);
 
         return architectConnections.stream()
                 .filter((x) ->
@@ -645,13 +645,15 @@ public class Broker {
      */
     void log(int gameid, MessageOrBuilder message, GameLogsDirection direction) {
         String messageStr = "";
+
         try {
             messageStr = com.google.protobuf.util.JsonFormat.printer()
                     .includingDefaultValueFields()
                     .print(message);
         } catch (InvalidProtocolBufferException e) {
-            logger.error("could convert message to json: " + message);
+            Logger.error("Could not convert message to json: {}", message);
         }
+
         log(gameid, messageStr, message.getClass().getSimpleName(), direction);
     }
 
@@ -705,11 +707,12 @@ public class Broker {
     private DSLContext setupDatabase() {
         // special case:  If no database was configured at all, use an in-memory db (for testing)
         if (config.getDatabase() == null) {
-            logger.warn("no database configured, will use temporary in-memory database");
+            Logger.warn("no database configured, will use temporary in-memory database");
+
             try {
                 Class.forName("org.h2.Driver");
             } catch (ClassNotFoundException e) {
-                logger.error("No h2 class found, aborting.");
+                Logger.error("No h2 class found, aborting.");
                 e.printStackTrace();
                 System.exit(1);
             }
@@ -739,14 +742,15 @@ public class Broker {
                     conn,
                     SQLDialect.valueOf(config.getDatabase().getSqlDialect())
             );
-            logger.info("Connected to {} database at {}.",
+            Logger.info("Connected to {} database at {}.",
                     config.getDatabase().getSqlDialect(),
                     config.getDatabase().getUrl());
             return ret;
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        logger.error("Could not connect to database, exiting");
+
+        Logger.error("Could not connect to database, exiting.");
         System.exit(1);
         return null;
     }
@@ -761,7 +765,7 @@ public class Broker {
     public void startQuestionnaire(int gameId,
                                    DelegatingStreamObserver streamObserver) {
         if (config.getUseInternalQuestionnaire()) {
-            logger.info("Starting questionnaire for game {}", gameId);
+            Logger.info("Starting questionnaire for game {}", gameId);
             Questionnaire questionnaire = createQuestionnaire(gameId, streamObserver);
             questionnaire.start();
             questionnaires.put(gameId, questionnaire);

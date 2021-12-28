@@ -8,16 +8,11 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 import de.saar.minecraft.broker.db.Tables;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jooq.DSLContext;
-
 
 public class GameInformation {
     int gameId;
     DSLContext jooq;
-
-    private static final Logger logger = LogManager.getLogger(GameInformation.class);
 
     public GameInformation(int gameId, DSLContext jooq) {
         this.gameId = gameId;
