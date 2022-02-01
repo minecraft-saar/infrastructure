@@ -148,7 +148,7 @@ and adjust the database server, database, and user name to your needs.
     * Then start the  mariadb client as root (` > sudo mysql` or ` > mysql -u root -p`)
     * If you are facing issues with sockets, access denied or incorrect auth plugin, see [here.](https://stackoverflow.com/questions/37879448/mysql-fails-on-mysql-error-1524-hy000-plugin-auth-socket-is-not-loaded) 
 3. Create a new database schema, e.g. `CREATE SCHEMA MINECRAFT;`
-4. Create a user with ` > CREATE USER ‘minecraft’@’localhost’; `
+4. Create a user with ` > CREATE USER 'minecraft'@'localhost'; `
 5. `> GRANT ALL PRIVILEGES  ON MINECRAFT.* TO 'minecraft'@'localhost';`
 
 ### Setting up the database
