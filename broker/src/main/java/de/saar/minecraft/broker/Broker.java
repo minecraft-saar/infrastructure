@@ -445,7 +445,7 @@ public class Broker {
         questionTemplates = new HashMap<>();
         List<String> questionnairesInResources = null;
         // Check availability of questionnaires
-        Path path = Paths.get("de", "saar", "minecraft", "questionnaires");
+        String path = "de/saar/minecraft/questionnaires";
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPaths(path.toString())
                 .scan()) {
@@ -453,8 +453,7 @@ public class Broker {
                     .filter(x -> x.getURL().getFile().endsWith(".txt"))
                     .getPaths()
                     .stream()
-                    .map(x -> Paths.get(x).subpath(4, 5).toString())
-                    .map(y -> y.substring(0, y.length() - 4))
+                    .map(x -> x.substring(x.lastIndexOf("/") + 1, x.length() - 4))
                     .collect(Collectors.toList());
         } catch (Exception exception) {
             Logger.warn("Could not read questionnaires from resources, " +
@@ -481,8 +480,7 @@ public class Broker {
         }
         // Load questionnaires
         for (String filename : questionnairesInResources) {
-            String ending = String.format("%s.txt", filename);
-            String pathQuestionnaires = FileSystems.getDefault().getSeparator() + Paths.get(path.toString(), ending);
+            String pathQuestionnaires = String.format("/de/saar/minecraft/questionnaires/%s.txt", filename);
             try{
                 InputStream in = Broker.class.getResourceAsStream(pathQuestionnaires);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -514,17 +512,16 @@ public class Broker {
      */
     private void initScenarios(List<String> confScenarios) {
         List<String> scenariosInResources = null;
-        Path path = Paths.get("de", "saar", "minecraft", "worlds");
+        String path ="de/saar/minecraft/worlds";
         //get all scenarios
         try (ScanResult scanResult = new ClassGraph()
-                .whitelistPaths(path.toString())
+                .whitelistPaths(path)
                 .scan()) {
             scenariosInResources = scanResult.getAllResources()
                     .filter(x -> x.getURL().getFile().endsWith(".csv"))
                     .getPaths()
                     .stream()
-                    .map(x -> Paths.get(x).subpath(4, 5).toString())
-                    .map(y -> y.substring(0, y.length() - 4))
+                    .map(x -> x.substring(x.lastIndexOf("/") + 1, x.length() - 4))
                     .collect(Collectors.toList());
         } catch (Exception exception) {
             Logger.warn("Could not read scenarios from resources, not performing sanity checks.");
