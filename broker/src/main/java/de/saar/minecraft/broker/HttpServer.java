@@ -33,6 +33,9 @@ import org.apache.commons.text.StringEscapeUtils;
 import org.jooq.Result;
 import org.tinylog.Logger;
 
+/**
+ * implemets http read-only interface of the database.
+ */
 public class HttpServer {
     private CarrotEngine engine;
     private Broker broker;
@@ -53,6 +56,8 @@ public class HttpServer {
 
     /**
      * Starts the HTTP server, displaying information about the broker.
+     * @param broker the broker
+     * @throws IOException if server creation does not work
      */
     public void start(Broker broker) throws IOException {
         int port = broker.getConfig().getHttpPort();
@@ -107,7 +112,7 @@ public class HttpServer {
             } else if ("/showgame.html".equals(path)) {
                 response = createGameResponse(t);
             } else if ("/showprettygame.html".equals(path)) {
-            response = createPrettyGameResponse(t);
+                response = createPrettyGameResponse(t);
             } else if ("/showquestionnaire.html".equals(path)) {
                 response = createQuestionnaireResponse(t);
             } else if ("/showgamestatistics.html".equals(path)) {
@@ -132,14 +137,14 @@ public class HttpServer {
             bindings.put("config", broker.getConfig());
             try {
                 Result<GamesRecord> latestGames = broker.getJooq().selectFrom(Tables.GAMES)
-                    .orderBy(Tables.GAMES.ID.desc())
-                    .limit(20)
-                    .fetch();
+                        .orderBy(Tables.GAMES.ID.desc())
+                        .limit(20)
+                        .fetch();
 
                 bindings.put("latest", latestGames);
             } catch (Exception e) {
                 var error = "Could not fetch latest games.  Is the DB schema up to date?\n"
-                    + e.toString();
+                        + e.toString();
                 Logger.error(error);
                 return error;
             }
@@ -154,24 +159,25 @@ public class HttpServer {
         private String createGameResponse(HttpExchange t) {
             String response = checkHttpQuery(t, "id");
             if (response == null) {
-                Map<String,String> params = queryToMap(t.getRequestURI().getQuery());
+                Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
                 int gameid = Integer.parseInt(params.get("id"));
                 GamesRecord game = broker.getJooq()
-                    .selectFrom(Tables.GAMES)
-                    .where(Tables.GAMES.ID.equal(gameid))
-                    .fetchOne();
+                        .selectFrom(Tables.GAMES)
+                        .where(Tables.GAMES.ID.equal(gameid))
+                        .fetchOne();
 
                 Result<GameLogsRecord> gameLog = broker.getJooq()
-                    .selectFrom(Tables.GAME_LOGS)
-                    .where(Tables.GAME_LOGS.GAMEID.equal(gameid))
-                    .orderBy(Tables.GAME_LOGS.ID.asc())
-                    .fetch();
+                        .selectFrom(Tables.GAME_LOGS)
+                        .where(Tables.GAME_LOGS.GAMEID.equal(gameid))
+                        .orderBy(Tables.GAME_LOGS.ID.asc())
+                        .fetch();
 
                 // escape Textmessages for html
-                for (GameLogsRecord entry: gameLog) {
+                for (GameLogsRecord entry : gameLog) {
                     if (entry.getMessageType().equals(TextMessage.class.getSimpleName())) {
-                        JsonObject object = JsonParser.parseString(entry.getMessage()).getAsJsonObject();
-                        if (! object.has("text")) {
+                        JsonObject object = JsonParser.parseString(entry.getMessage())
+                                .getAsJsonObject();
+                        if (!object.has("text")) {
                             continue;
                         }
                         String text = object.get("text").getAsString();
@@ -190,14 +196,18 @@ public class HttpServer {
                     response = engine.process("showgame.html", new MapBindings(bindings));
                 } catch (CarrotException e) {
                     response = "An error occurred when expanding showgame.html: "
-                        + e.toString();
+                            + e.toString();
                 }
             }
             return response;
         }
 
         public static class PrettyMessage {
-            private String timestamp, message, color, link;
+
+            private String timestamp;
+            private String message;
+            private String color;
+            private final String link;
 
             public PrettyMessage(String timestamp, String message, String color, String link) {
                 this.timestamp = timestamp;
@@ -262,8 +272,10 @@ public class HttpServer {
 
                 for (GameLogsRecord entry : gameLog) {
                     try {
-                        JsonObject object = JsonParser.parseString(entry.getMessage()).getAsJsonObject();
-                        if( object.get("newGameState") != null && "SuccessfullyFinished".equals(object.get("newGameState").getAsString())) {
+                        JsonObject object = JsonParser.parseString(entry.getMessage())
+                                .getAsJsonObject();
+                        if (object.get("newGameState") != null && "SuccessfullyFinished"
+                                .equals(object.get("newGameState").getAsString())) {
                             successfulGame = true;
                         }
 
@@ -271,8 +283,12 @@ public class HttpServer {
                             startTime = entry.getTimestamp();
                         }
 
-                        millisecondsSinceStart = startTime.until(entry.getTimestamp(), ChronoUnit.MILLIS);
-                        String timestamp = String.format("%02d:%02d.%03d", millisecondsSinceStart / 60 / 1000, (millisecondsSinceStart / 1000) % 60, millisecondsSinceStart % 1000);
+                        millisecondsSinceStart = startTime.until(entry.getTimestamp(),
+                                ChronoUnit.MILLIS);
+                        String timestamp = String.format("%02d:%02d.%03d",
+                                millisecondsSinceStart / 60 / 1000,
+                                (millisecondsSinceStart / 1000) % 60,
+                                millisecondsSinceStart % 1000);
                         String link = linkBase + entry.getId();
 
                         if (entry.getMessageType().equals(TextMessage.class.getSimpleName())) {
@@ -284,34 +300,47 @@ public class HttpServer {
                                     text = object.get("message").getAsString();
                                 }
 
-                                // This is how mistakes are counted in GameInformation#getNumMistakes.
-                                if( text.contains("Not there! please remove that block again")) {
+                                //This is how mistakes are counted in GameInformation#getNumMistakes
+                                if (text.contains("Not there! please remove that block again")) {
                                     numMistakes++;
                                 }
 
-                                // If the previous message was a correct block placement, this text message
-                                // probably starts a new instruction; add a blank link before it to make this more visible.
-                                if( !prettyMessages.isEmpty() && prettyMessages.get(prettyMessages.size()-1).getColor().equals("green")) {
-                                    prettyMessages.add(new PrettyMessage("", "", "black", link));
+                                // If the previous message was a correct block placement,
+                                // this text message probably starts a new instruction;
+                                // add a blank link before it to make this more visible.
+                                if (!prettyMessages.isEmpty() && prettyMessages.get(
+                                        prettyMessages.size() - 1).getColor().equals("green")) {
+                                    prettyMessages.add(new PrettyMessage("", "",
+                                            "black", link));
                                 }
 
                                 // escape any HTML in the message and add it to the list
                                 text = StringEscapeUtils.escapeHtml4(text);
-                                prettyMessages.add(new PrettyMessage(timestamp, text, "black", link));
+                                prettyMessages.add(new PrettyMessage(timestamp, text,
+                                        "black", link));
                             }
-                        } else if (entry.getMessageType().equals(BlockPlacedMessage.class.getSimpleName())) {
-                            String text = String.format("block placed at %d,%d,%d", object.get("x").getAsInt(), object.get("y").getAsInt(), object.get("z").getAsInt());
+                        } else if (entry.getMessageType().equals(BlockPlacedMessage
+                                .class.getSimpleName())) {
+                            String text = String.format("block placed at %d,%d,%d",
+                                    object.get("x").getAsInt(),
+                                    object.get("y").getAsInt(),
+                                    object.get("z").getAsInt());
                             prettyMessages.add(new PrettyMessage(timestamp, text, "red", link));
-                        } else if (entry.getMessageType().equals(ProtectBlockMessage.class.getSimpleName())) {
+                        } else if (entry.getMessageType().equals(ProtectBlockMessage
+                                .class.getSimpleName())) {
                             // recolor correct block-placed messages to green
-                            prettyMessages.get(prettyMessages.size()-1).setColor("green");
-                        } else if (entry.getMessageType().equals(BlockDestroyedMessage.class.getSimpleName())) {
-                            String text = String.format("block destroyed at %d,%d,%d", object.get("x").getAsInt(), object.get("y").getAsInt(), object.get("z").getAsInt());
+                            prettyMessages.get(prettyMessages.size() - 1).setColor("green");
+                        } else if (entry.getMessageType().equals(BlockDestroyedMessage
+                                .class.getSimpleName())) {
+                            String text = String.format("block destroyed at %d,%d,%d",
+                                    object.get("x").getAsInt(),
+                                    object.get("y").getAsInt(),
+                                    object.get("z").getAsInt());
                             prettyMessages.add(new PrettyMessage(timestamp, text, "orange", link));
                             numDestroyed++;
                         }
 
-                    } catch(IllegalStateException|com.google.gson.JsonSyntaxException e) {
+                    } catch (IllegalStateException | com.google.gson.JsonSyntaxException e) {
                         // JSON parsing errors, ignore these
                     }
                 }
@@ -322,7 +351,10 @@ public class HttpServer {
                 bindings.put("messages", prettyMessages);
                 bindings.put("numDestroyed", numDestroyed);
                 bindings.put("numMistakes", numMistakes);
-                bindings.put("gameDuration", String.format("%02d:%02d (%d seconds)", millisecondsSinceStart / 60 / 1000, (millisecondsSinceStart / 1000) % 60, millisecondsSinceStart/1000));
+                bindings.put("gameDuration", String.format("%02d:%02d (%d seconds)",
+                        millisecondsSinceStart / 60 / 1000,
+                        (millisecondsSinceStart / 1000) % 60,
+                        millisecondsSinceStart / 1000));
                 bindings.put("successful", successfulGame);
 
                 try {
@@ -342,18 +374,18 @@ public class HttpServer {
                 Map<String, String> params = queryToMap(t.getRequestURI().getQuery());
                 int gameid = Integer.parseInt(params.get("id"));
                 GamesRecord game = broker.getJooq()
-                    .selectFrom(Tables.GAMES)
-                    .where(Tables.GAMES.ID.equal(gameid))
-                    .fetchOne();
+                        .selectFrom(Tables.GAMES)
+                        .where(Tables.GAMES.ID.equal(gameid))
+                        .fetchOne();
 
                 Result<QuestionnairesRecord> questionnaire = broker.getJooq()
-                    .selectFrom(Tables.QUESTIONNAIRES)
-                    .where(Tables.QUESTIONNAIRES.GAMEID.equal(gameid))
-                    .orderBy(Tables.QUESTIONNAIRES.ID.asc())
-                    .fetch();
+                        .selectFrom(Tables.QUESTIONNAIRES)
+                        .where(Tables.QUESTIONNAIRES.GAMEID.equal(gameid))
+                        .orderBy(Tables.QUESTIONNAIRES.ID.asc())
+                        .fetch();
 
                 // escape for html
-                for (QuestionnairesRecord row: questionnaire) {
+                for (QuestionnairesRecord row : questionnaire) {
                     row.setQuestion(StringEscapeUtils.escapeHtml4(row.getQuestion()));
                     row.setAnswer(StringEscapeUtils.escapeHtml4(row.getAnswer()));
                 }
@@ -363,10 +395,10 @@ public class HttpServer {
                 bindings.put("questionnaire", questionnaire);
                 try {
                     response = engine.process("showquestionnaire.html",
-                        new MapBindings(bindings));
+                            new MapBindings(bindings));
                 } catch (CarrotException e) {
                     response = "An error occurred when expanding showquestionnaire.html: "
-                        + e.toString();
+                            + e.toString();
                 }
             }
             return response;
@@ -379,9 +411,9 @@ public class HttpServer {
                 int gameId = Integer.parseInt(params.get("id"));
 
                 GamesRecord game = broker.getJooq()
-                    .selectFrom(Tables.GAMES)
-                    .where(Tables.GAMES.ID.equal(gameId))
-                    .fetchOne();
+                        .selectFrom(Tables.GAMES)
+                        .where(Tables.GAMES.ID.equal(gameId))
+                        .fetchOne();
 
                 GameInformation info = new GameInformation(gameId, broker.getJooq());
 
@@ -391,10 +423,10 @@ public class HttpServer {
                 bindings.put("info", info);
                 try {
                     response = engine.process("showgamestatistics.html",
-                        new MapBindings(bindings));
+                            new MapBindings(bindings));
                 } catch (CarrotException e) {
                     response = "An error occurred when expanding showgamestatistics.html: "
-                        + e.toString();
+                            + e.toString();
                 }
             }
             return response;
@@ -405,12 +437,12 @@ public class HttpServer {
             Map<String, Object> bindings = new TreeMap<>();
             try {
                 Result<GamesRecord> allGames = broker.getJooq().selectFrom(Tables.GAMES)
-                    .orderBy(Tables.GAMES.ID.desc())
-                    .fetch();
+                        .orderBy(Tables.GAMES.ID.desc())
+                        .fetch();
                 bindings.put("games", allGames);
             } catch (Exception e) {
                 var error = "Could not fetch games.  Is the DB schema up to date?\n"
-                    + e.toString();
+                        + e.toString();
                 Logger.error(error);
                 return error;
             }

@@ -8,6 +8,7 @@ import java.util.Set;
 import org.jooq.DSLContext;
 
 /**
+ * This type of questionnaire is no longer used. We switched to Google Forms questionnaires
  * A Questionnaire is created once the player finishes their game.
  * It sends initial information and receives all text messages written by the player
  * from that point onwards.
@@ -62,6 +63,8 @@ class Questionnaire {
                 break;
             case LIKERT:
                 answerIsValid = Set.of("1","2","3","4","5").contains(answer);
+                break;
+            default:
                 break;
         }
 

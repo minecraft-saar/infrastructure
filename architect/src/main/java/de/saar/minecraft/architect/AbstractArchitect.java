@@ -22,7 +22,7 @@ public abstract class AbstractArchitect implements Architect {
      * id of the game we are connected to.
      **/
     protected int gameId;
-//    private static final Logger logger = LogManager.getLogger(AbstractArchitect.class);
+    //    private static final Logger logger = LogManager.getLogger(AbstractArchitect.class);
     /**
      * has the player left?.
      **/

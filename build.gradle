@@ -54,6 +54,14 @@ subprojects {
     }
     
     javadoc {
+        exclude "de/saar/minecraft/architect/ArchitectInformation*"
+        exclude "de/saar/minecraft/architect/ArchitectGrpc.java"
+        exclude "de/saar/minecraft/architect/ArchitectProto.java"
+        exclude "de/saar/minecraft/shared/*"
+        exclude "de/saar/minecraft/broker/BrokerGrpc.java"
+        exclude "de/saar/minecraft/broker/GameData*"
+        exclude "de/saar/minecraft/broker/BrokerProto.java"
+        exclude "de/saar/minecraft/broker/db"
 	    failOnError = false
     }
     

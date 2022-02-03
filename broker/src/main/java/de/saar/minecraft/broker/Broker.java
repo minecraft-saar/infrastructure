@@ -24,7 +24,6 @@ import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.*;
-import java.nio.file.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -456,8 +455,8 @@ public class Broker {
                     .map(x -> x.substring(x.lastIndexOf("/") + 1, x.length() - 4))
                     .collect(Collectors.toList());
         } catch (Exception exception) {
-            Logger.warn("Could not read questionnaires from resources, " +
-                    "not performing sanity checks.");
+            Logger.warn("Could not read questionnaires from resources, "
+                    + "not performing sanity checks.");
         }
         // Checks
         if (questionnairesInResources == null) {
@@ -475,13 +474,15 @@ public class Broker {
             Logger.warn("No scenarios defined in the broker configuration. "
                     + "Will load all questionnaires");
         } else {
-            questionnairesInResources = questionnairesInResources.stream().filter(confScenarios::contains).collect(Collectors.toList());
+            questionnairesInResources = questionnairesInResources.stream()
+                    .filter(confScenarios::contains).collect(Collectors.toList());
             Logger.info("Start loading defined questionnaires.");
         }
         // Load questionnaires
         for (String filename : questionnairesInResources) {
-            String pathQuestionnaires = String.format("/de/saar/minecraft/questionnaires/%s.txt", filename);
-            try{
+            String pathQuestionnaires =
+                    String.format("/de/saar/minecraft/questionnaires/%s.txt", filename);
+            try {
                 InputStream in = Broker.class.getResourceAsStream(pathQuestionnaires);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(in));
                 List<Question> current = new ArrayList<>();
@@ -512,7 +513,7 @@ public class Broker {
      */
     private void initScenarios(List<String> confScenarios) {
         List<String> scenariosInResources = null;
-        String path ="de/saar/minecraft/worlds";
+        String path = "de/saar/minecraft/worlds";
         //get all scenarios
         try (ScanResult scanResult = new ClassGraph()
                 .whitelistPaths(path)
@@ -533,7 +534,7 @@ public class Broker {
                     .filter(scenariosInResources::contains)
                     .collect(Collectors.joining(" "));
             Logger.error("You defined a scenario in the configuration that is "
-                    + "not present in the resources: {}",
+                            + "not present in the resources: {}",
                     wrongScenarios
             );
             throw (new RuntimeException("Wrong scenario defined"));
@@ -783,8 +784,8 @@ public class Broker {
                 }
                 streamObserver.onNext(TextMessage.newBuilder()
                         .setGameId(gameId)
-                        .setText("Thank you for your time! " +
-                                "Please make sure you know the secret word before you disconnect.")
+                        .setText("Thank you for your time! Please make sure you know "
+                                + "the secret word before you disconnect.")
                         // .setNewGameState(NewGameState.QuestionnaireFinished)
                         .build());
             }).start();

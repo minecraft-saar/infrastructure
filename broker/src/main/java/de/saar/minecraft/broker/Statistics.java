@@ -1,5 +1,9 @@
 package de.saar.minecraft.broker;
 
+/*
+This whole class is deprecated. All game analysis and statistics is now done
+in a separate project called experiment-analysis
+
 import static java.time.temporal.ChronoUnit.NANOS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 
@@ -28,12 +32,12 @@ public class Statistics {
     }
 
 
-//    Average game duration: {{ statistics.averageGameDuration }} <br/>
-//    Fraction of successful games: {{ statistics.fractionSuccessfulGames }} <br/>
-//    Fraction of players making a mistake: {{ }} <br/>
-//    Average number of mistakes: {{ statistics.averageNumMistakes }} <br/>
-//    Average number of blocks placed {{statistics.averageNumBlocksPlaced }} <br/>
-//    Average number of blocks destroyed {{ statistics.averageNumBlocksDestroyed}} <br/>
+    //  Average game duration: {{ statistics.averageGameDuration }} <br/>
+    //  Fraction of successful games: {{ statistics.fractionSuccessfulGames }} <br/>
+    //  Fraction of players making a mistake: {{ }} <br/>
+    //  Average number of mistakes: {{ statistics.averageNumMistakes }} <br/>
+    //  Average number of blocks placed {{statistics.averageNumBlocksPlaced }} <br/>
+    //  Average number of blocks destroyed {{ statistics.averageNumBlocksDestroyed}} <br/>
     public float getAverageGameDuration() {
         return 0;
     }
@@ -47,7 +51,7 @@ public class Statistics {
         // An instructions begins when the Architect gives a text message
         // TODO: database does not distinguish between Architect and Broker messages
         // An instruction ends when the player places or breaks a block or sends a text message
-        // An instruction ends unsuccessfully if there is a new text message before the player reacts
+        //An instruction ends unsuccessfully if there is a new text message before the player reacts
         String currentInstruction = "";
         LocalDateTime instructionTime = gameLog.get(0).getTimestamp();
         List<Instruction> instructions = new ArrayList<>();
@@ -90,7 +94,9 @@ public class Statistics {
         public String reaction;
         public boolean successful;
 
-        public Instruction(LocalDateTime startTime, LocalDateTime endTime, String text, String reaction, boolean successful) {
+
+        public Instruction(LocalDateTime startTime, LocalDateTime endTime, String text,
+                           String reaction, boolean successful) {
             this.startTime = startTime;
             this.endTime = endTime;
             this.duration = startTime.until(endTime, NANOS);
@@ -136,4 +142,4 @@ public class Statistics {
         return null;
     }
 
-}
+} */

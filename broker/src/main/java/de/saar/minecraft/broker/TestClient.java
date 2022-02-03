@@ -27,20 +27,22 @@ import org.tinylog.Logger;
  * Ctrl-D to quit the client.
  */
 public class TestClient {
-    private ManagedChannel channel;
-    private BrokerGrpc.BrokerBlockingStub blockingStub;
-    private BrokerGrpc.BrokerStub nonblockingStub;
-    private List<Integer> runningGames;
+    private final ManagedChannel channel;
+    private final BrokerGrpc.BrokerBlockingStub blockingStub;
+    private final BrokerGrpc.BrokerStub nonblockingStub;
+    private final List<Integer> runningGames;
 
     /**
      * Construct client connecting to HelloWorld server at {@code host:port}.
+     * @param host address of the host
+     * @param port the port
      */
     public TestClient(String host, int port) {
         this(ManagedChannelBuilder.forAddress(host, port)
-            // Channels are secure by default (via SSL/TLS). For the example we disable TLS to avoid
-            // needing certificates.
-            .usePlaintext()
-            .build());
+                // Channels are secure by default (via SSL/TLS). For the example we disable TLS
+                // to avoid needing certificates.
+                .usePlaintext()
+                .build());
     }
 
     /**
@@ -58,7 +60,7 @@ public class TestClient {
      */
     public void shutdown() {
         // end all running games to close the open streams
-        for (Integer i: runningGames) {
+        for (Integer i : runningGames) {
             try {
                 blockingStub.endGame(GameId.newBuilder().setId(i).build());
             } catch (Exception e) {
@@ -74,6 +76,9 @@ public class TestClient {
      * Registers a game with the matchmaker. Returns a unique game ID for this game.
      * Registers streamObserver for messages if provided.  If that argument is null,
      * it will instantiate a default TextStreamObserver.
+     * @param playerName name of the player
+     * @param streamObserver the text message stream observer or null
+     * @return the id of the registered game
      */
     public int registerGame(String playerName, StreamObserver<TextMessage> streamObserver) {
         // TODO fill in PlayerLoginEvent#getAddress, Player#getDisplayName
@@ -87,9 +92,9 @@ public class TestClient {
         }
 
         GameData gameData = GameData.newBuilder()
-            .setClientAddress(hostname)
-            .setPlayerName(playerName)
-            .build();
+                .setClientAddress(hostname)
+                .setPlayerName(playerName)
+                .build();
 
         WorldSelectMessage worldSelectMessage;
         try {
@@ -110,6 +115,11 @@ public class TestClient {
         return gameId;
     }
 
+
+    /**
+     * Tidy up after game finished.
+     * @param gameId Id of finished game
+     */
     public void finishGame(int gameId) {
         GameId gameIdMessage = GameId.newBuilder().setId(gameId).build();
         blockingStub.endGame(gameIdMessage);
@@ -119,61 +129,109 @@ public class TestClient {
     /**
      * Sends a status message for the given game ID to the matchmaker.
      * Handles any text messages that the matchmaker sends back.
+     * @param gameId game id
+     * @param x player pos
+     * @param y player pos
+     * @param z player pos
+     * @param xdir player view direction
+     * @param ydir player view direction
+     * @param zdir player view direction
+     * @param obs stream Observer for None objects
      */
     public void sendStatusMessage(int gameId, int x, int y, int z,
                                   double xdir, double ydir, double zdir,
                                   StreamObserver<None> obs) {
         StatusMessage message = StatusMessage
-            .newBuilder()
-            .setGameId(gameId)
-            .setX(x)
-            .setY(y)
-            .setZ(z)
-            .setXDirection(xdir)
-            .setYDirection(ydir)
-            .setZDirection(zdir)
-            .build();
+                .newBuilder()
+                .setGameId(gameId)
+                .setX(x)
+                .setY(y)
+                .setZ(z)
+                .setXDirection(xdir)
+                .setYDirection(ydir)
+                .setZDirection(zdir)
+                .build();
         nonblockingStub.handleStatusInformation(message, obs);
     }
 
+    /**
+     * send player position and view direction.
+     * @param gameId id of game
+     * @param x player pos
+     * @param y player pos
+     * @param z player pos
+     * @param xdir player view dir
+     * @param ydir player view dir
+     * @param zdir player view dir
+     */
     public void sendStatusMessage(int gameId, int x, int y, int z,
-                                   double xdir, double ydir, double zdir) {
+                                  double xdir, double ydir, double zdir) {
         sendStatusMessage(gameId, x, y, z, xdir, ydir, zdir, new NoneObserver());
     }
 
+    /**
+     * send block placement message for a stone block.
+     * @param gameId id of game
+     * @param x pos of block
+     * @param y pos of block
+     * @param z pos of block
+     */
     public void sendBlockPlacedMessage(int gameId, int x, int y, int z) {
-        sendBlockPlacedMessage(gameId, x, y, z, 0);
+        sendBlockPlacedMessage(gameId, x, y, z, 1);
     }
 
+    /**
+     * send block placement message.
+     * @param gameId id of game
+     * @param x pos of block
+     * @param y pos of block
+     * @param z pos of block
+     * @param type block type
+     */
     public void sendBlockPlacedMessage(int gameId, int x, int y, int z, int type) {
         var message = BlockPlacedMessage.newBuilder()
-            .setGameId(gameId)
-            .setX(x)
-            .setY(y)
-            .setZ(z)
-            .setType(type)
-            .build();
+                .setGameId(gameId)
+                .setX(x)
+                .setY(y)
+                .setZ(z)
+                .setType(type)
+                .build();
 
         Logger.info("message {}", message);
         nonblockingStub.handleBlockPlaced(message, new NoneObserver());
     }
 
+    /**
+     * sending a text message.
+     * @param gameId id of game
+     * @param message message to be send
+     */
     public void sendTextMessage(int gameId, String message) {
         nonblockingStub.handleTextMessage(TextMessage.newBuilder()
-            .setGameId(gameId)
-            .setText(message)
-            .build(), new NoneObserver());
+                .setGameId(gameId)
+                .setText(message)
+                .build(), new NoneObserver());
     }
 
+    /**
+     * block was ssssdestroyed.
+     * @param gameId id of game
+     * @param x block pos
+     * @param y block pos
+     * @param z block pos
+     */
     public void sendBlockDestroyedMessage(int gameId, int x, int y, int z) {
         nonblockingStub.handleBlockDestroyed(BlockDestroyedMessage.newBuilder()
-            .setGameId(gameId)
-            .setX(x)
-            .setY(y)
-            .setZ(z)
-            .build(), new NoneObserver());
+                .setGameId(gameId)
+                .setX(x)
+                .setY(y)
+                .setZ(z)
+                .build(), new NoneObserver());
     }
 
+    /**
+     * Stream Observer for None Objects only needed for testing.ö
+     */
     public static class NoneObserver implements StreamObserver<None> {
 
         @Override
@@ -191,7 +249,7 @@ public class TestClient {
     }
 
     private static class TextStreamObserver implements StreamObserver<TextMessage> {
-        private int gameId;
+        private final int gameId;
 
         public TextStreamObserver(int gameId) {
             this.gameId = gameId;
@@ -214,6 +272,8 @@ public class TestClient {
 
     /**
      * Runs the TestClient with a prompt to start new clients.
+     * @param args no arguments needed
+     * @throws InterruptedException when being interupted by using Ctrl-D
      */
     public static void main(String[] args) throws InterruptedException {
         TestClient client = new TestClient("localhost", 2802);
@@ -243,22 +303,22 @@ public class TestClient {
                 int id = Integer.parseInt(parts[1]);
                 switch (parts[0]) {
                     case STATUS:
-                        if (parts.length == 8){
+                        if (parts.length == 8) {
                             client.sendStatusMessage(id,
-                                Integer.parseInt(parts[2]),
-                                Integer.parseInt(parts[3]),
-                                Integer.parseInt(parts[4]),
-                                Float.parseFloat(parts[5]),
-                                Float.parseFloat(parts[6]),
-                                Float.parseFloat(parts[7]));
+                                    Integer.parseInt(parts[2]),
+                                    Integer.parseInt(parts[3]),
+                                    Integer.parseInt(parts[4]),
+                                    Float.parseFloat(parts[5]),
+                                    Float.parseFloat(parts[6]),
+                                    Float.parseFloat(parts[7]));
                         } else if (parts.length == 5) {
                             client.sendStatusMessage(id,
-                                Integer.parseInt(parts[2]),
-                                Integer.parseInt(parts[3]),
-                                Integer.parseInt(parts[4]),
-                                0.4,
-                                0.0,
-                                -0.7);
+                                    Integer.parseInt(parts[2]),
+                                    Integer.parseInt(parts[3]),
+                                    Integer.parseInt(parts[4]),
+                                    0.4,
+                                    0.0,
+                                    -0.7);
                         } else {
                             client.sendStatusMessage(id, 1, 2, 3, 0.4, 0.0, -0.7);
                         }
@@ -266,32 +326,35 @@ public class TestClient {
                     case PLACE:
                         if (parts.length == 6) {
                             client.sendBlockPlacedMessage(id,
-                                Integer.parseInt(parts[2]),
-                                Integer.parseInt(parts[3]),
-                                Integer.parseInt(parts[4]),
-                                Integer.parseInt(parts[5]));
+                                    Integer.parseInt(parts[2]),
+                                    Integer.parseInt(parts[3]),
+                                    Integer.parseInt(parts[4]),
+                                    Integer.parseInt(parts[5]));
                         } else if (parts.length == 5) {
                             client.sendBlockPlacedMessage(id,
-                                Integer.parseInt(parts[2]),
-                                Integer.parseInt(parts[3]),
-                                Integer.parseInt(parts[4]));
+                                    Integer.parseInt(parts[2]),
+                                    Integer.parseInt(parts[3]),
+                                    Integer.parseInt(parts[4]));
                         } else {
-                            client.sendBlockPlacedMessage(id, 5,2,3);
+                            client.sendBlockPlacedMessage(id, 5, 2, 3);
                         }
                         break;
                     case DESTROY:
                         if (parts.length == 5) {
                             client.sendBlockDestroyedMessage(id,
-                                Integer.parseInt(parts[2]),
-                                Integer.parseInt(parts[3]),
-                                Integer.parseInt(parts[4]));
+                                    Integer.parseInt(parts[2]),
+                                    Integer.parseInt(parts[3]),
+                                    Integer.parseInt(parts[4]));
                         } else {
-                            client.sendBlockDestroyedMessage(id, 5,2,3);
+                            client.sendBlockDestroyedMessage(id, 5, 2, 3);
                         }
                         break;
                     case TEXT:
-                        String message = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
-                        client.sendTextMessage(id, message);
+                        String mes = String.join(" ", Arrays.copyOfRange(parts, 2, parts.length));
+                        client.sendTextMessage(id, mes);
+                        break;
+                    default:
+                        System.out.println("ignoring unsupported command");
                         break;
                 }
             }

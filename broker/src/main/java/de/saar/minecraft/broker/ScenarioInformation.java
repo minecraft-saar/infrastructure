@@ -1,4 +1,8 @@
 package de.saar.minecraft.broker;
+/*
+This whole class is deprecated. All game analysis and statistics is now done
+in a separate project called experiment-analysis
+
 
 import de.saar.minecraft.broker.db.Tables;
 import de.saar.minecraft.broker.db.tables.records.GamesRecord;
@@ -85,7 +89,7 @@ public class ScenarioInformation {
     /**
      * Fraction of players that made at least one mistake
      * @return
-     */
+
     public float getFractionMistakes() {
         int withMistakes = 0;
         for (GameInformation info: games) {
@@ -138,7 +142,7 @@ public class ScenarioInformation {
         List<Answer> distribution = new ArrayList<>();
         for (String question: collection.keySet()) {
 //            List<Integer> rawAnswers = collection.get(question);
-//            float average = (float)rawAnswers.stream().reduce(0, Integer::sum) / rawAnswers.size();
+//           float average = (float)rawAnswers.stream().reduce(0, Integer::sum) / rawAnswers.size();
 //            int mode;
 //            int median;
 //            int minimum = rawAnswers.stream().reduce(100, Integer::min);
@@ -219,4 +223,4 @@ public class ScenarioInformation {
             return maximum;
         }
     }
-}
+}*/

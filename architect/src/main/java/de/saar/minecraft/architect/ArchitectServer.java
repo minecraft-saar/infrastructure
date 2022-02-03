@@ -28,7 +28,7 @@ import org.tinylog.Logger;
  *
  */
 public class ArchitectServer {
-//    private static final Logger logger = LogManager.getLogger(ArchitectServer.class);
+    //    private static final Logger logger = LogManager.getLogger(ArchitectServer.class);
     private Server server;
     private Map<Integer, Architect> runningArchitects;
     private final ArchitectFactory factory;

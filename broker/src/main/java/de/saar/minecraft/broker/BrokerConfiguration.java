@@ -6,6 +6,7 @@ import java.util.List;
 import org.yaml.snakeyaml.TypeDescription;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
+
 /** contains all the information stated in the broker-config.yaml file with getters and setters.**/
 public class BrokerConfiguration {
     private List<ArchitectServerAddress> architectServers = new ArrayList<>();
@@ -195,9 +196,13 @@ public class BrokerConfiguration {
             return hostname + ":" + port;
         }
 
-        public ArchitectServerAddress(){}
+        /**
+         * constructor.
+         */
+        public ArchitectServerAddress() {
+        }
 
-        /**constructor
+        /** constructor.
          * @param hostname the hostname
          * @param port the port**/
         public ArchitectServerAddress(String hostname, int port) {
