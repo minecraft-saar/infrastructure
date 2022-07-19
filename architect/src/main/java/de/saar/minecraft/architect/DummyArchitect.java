@@ -80,14 +80,14 @@ public class DummyArchitect extends AbstractArchitect {
 
     @Override
     public void handleBlockPlaced(BlockPlacedMessage request) {
-        int type = request.getType();
+        String type = request.getType();
         int x = request.getX();
         int y = request.getY();
         int z = request.getZ();
 
         // spawn a thread for a long-running computation
         new Thread(() -> {
-            String text = String.format("A block was placed at %d-%d-%d :%d", x, y, z, type);
+            String text = String.format("A block was placed at %d-%d-%d :%s", x, y, z, type);
             var gameState = NewGameState.NotChanged;
             if (endAfterFirstBlock) {
                 gameState = NewGameState.SuccessfullyFinished;
@@ -107,11 +107,11 @@ public class DummyArchitect extends AbstractArchitect {
         int x = request.getX();
         int y = request.getY();
         int z = request.getZ();
-        int type = request.getType();
+        String type = request.getType();
 
         // spawn a thread for a long-running computation
         new Thread(() -> {
-            var text = String.format("A block was destroyed at %d-%d-%d :%d", x, y, z, type);
+            var text = String.format("A block was destroyed at %d-%d-%d :%s", x, y, z, type);
             // delay for a bit
             try {
                 Thread.sleep(waitTime);

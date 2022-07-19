@@ -142,10 +142,10 @@ public class TestClient {
     }
 
     public void sendBlockPlacedMessage(int gameId, int x, int y, int z) {
-        sendBlockPlacedMessage(gameId, x, y, z, 0);
+        sendBlockPlacedMessage(gameId, x, y, z, "STONE");
     }
 
-    public void sendBlockPlacedMessage(int gameId, int x, int y, int z, int type) {
+    public void sendBlockPlacedMessage(int gameId, int x, int y, int z, String type) {
         var message = BlockPlacedMessage.newBuilder()
             .setGameId(gameId)
             .setX(x)
@@ -269,7 +269,7 @@ public class TestClient {
                                 Integer.parseInt(parts[2]),
                                 Integer.parseInt(parts[3]),
                                 Integer.parseInt(parts[4]),
-                                Integer.parseInt(parts[5]));
+                                parts[5]);//TODO: this was Integer.parseInt(parts[5])); and should be a proper string
                         } else if (parts.length == 5) {
                             client.sendBlockPlacedMessage(id,
                                 Integer.parseInt(parts[2]),

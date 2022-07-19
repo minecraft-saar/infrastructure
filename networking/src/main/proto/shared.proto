@@ -46,22 +46,23 @@ message ProtectBlockMessage {
     string type = 5;
 }
 
-// type is the block material as listed in org.bukkit.Material
+// type is the block material as a string as listed in org.bukkit.Material
 message BlockPlacedMessage {
     int32 gameId = 1;
     int32 x = 2;
     int32 y = 3;
     int32 z = 4;
-    int32 type = 5;
+    string type = 5;
+    string replType = 6;
 }
 
-// type is the block material as listed in org.bukkit.Material
+// type is the block material as a string as listed in org.bukkit.Material
 message BlockDestroyedMessage {
     int32 gameId = 1;
     int32 x = 2;
     int32 y = 3;
     int32 z = 4;
-    int32 type = 5;
+    string type = 5;
 }
 
 // the name is the scenario
